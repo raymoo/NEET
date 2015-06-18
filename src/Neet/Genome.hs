@@ -45,8 +45,10 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Random.Class
 import Data.Map.Strict (Map)
+import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 
+import Neet.Parameters
 
 -- | The IDs node genes use to refer to nodes.
 newtype NodeId = NodeId Int
@@ -108,5 +110,17 @@ fullConn iSize oSize = do
   return $ Genome{..}
 
 
-mutateWeights :: MonadRandom m => Double -> Genome -> m Genome
-mutateWeights = undefined
+mutateWeights :: MonadRandom m => Parameters -> Genome -> m Genome
+mutateWeights Parameters{..} g@Genome{..} = setConns g `liftM` T.mapM mutOne connGenes
+  where setConns g cs = g { connGenes = cs }
+        mutOne conn = do
+          roll <- getRandomR (0,1)
+          roll2 <- getRandomR (0,1)
+          let newWeight
+                | roll > mutWeightRate = return $ connWeight conn
+                | roll2 <= newWeightRate = getRandomR (-1,1)
+                | otherwise = do
+                    pert <- getRandomR (-pertAmount,pertAmount)
+                    return $ connWeight conn + pert
+          w <- newWeight
+          return $ conn { connWeight = w }

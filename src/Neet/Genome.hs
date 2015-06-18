@@ -181,3 +181,36 @@ mutateConn innos params g = do
           w <- getRandomR (-1,1)
           let newConn = ConnGene inNode outNode w True recc
           addConn newConn (innos,conns)
+
+
+-- | Mutation of additional node.
+mutateNode :: (MonadRandom m, MonadFresh InnoId m) => Parameters -> Genome -> m Genome
+mutateNode params g = do
+  roll <- getRandomR (0,1)
+  if roll <= addNodeRate params then addRandNode else return g
+  where conns = connGenes g
+        nodes = nodeGenes g
+        pickConn :: MonadRandom m => m (InnoId, ConnGene)
+        pickConn = uniform $ M.toList conns
+        newId = nextNode g
+        newNextNode = case newId of NodeId x -> NodeId (x + 1)
+        addNode :: MonadFresh InnoId m => InnoId -> ConnGene -> m Genome
+        addNode inno gene = do
+          let ConnSig inId outId = toConnSig gene
+              inGene = nodes M.! inId
+              outGene = nodes M.! outId
+              newGene = NodeGene Hidden ((yHint inGene + yHint outGene) / 2)
+              newNodes = M.insert newId newGene nodes
+              disabledConn = gene { connEnabled = False }
+              backGene = ConnGene inId newId (connWeight gene) True (connRec gene)
+              forwardGene = ConnGene newId outId 1 True (connRec gene)
+          inno1 <- fresh
+          inno2 <- fresh
+          let newConns = M.insert inno2 forwardGene $ M.insert inno1 backGene conns
+          return $ g { nodeGenes = newNodes
+                     , connGenes = newConns
+                     , nextNode = newNextNode
+                     }
+        addRandNode :: (MonadRandom m, MonadFresh InnoId m) => m Genome
+        addRandNode =
+          pickConn >>= uncurry addNode

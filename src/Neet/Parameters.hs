@@ -32,8 +32,8 @@ module Neet.Parameters (Parameters(..)) where
 
 -- | The genetic parameters
 data Parameters =
-  Parameters { pertWeightRate :: Double -- ^ How often weights are perturbed
-             , newWeightRate  :: Double -- ^ How often weights are replaced
+  Parameters { mutWeightRate  :: Double -- ^ How often weights are mutated
+             , newWeightRate  :: Double -- ^ How often weights are replaced if mutated
              , pertAmount     :: Double -- ^ Max amount of perturbation
              , addConnRate    :: Double -- ^ How often new connections are made
              , addNodeRate    :: Double -- ^ How often new nodes are added

@@ -24,10 +24,11 @@ Copyright   : (c) Leon Medvinsky, 2015
 License     : GPL-3
 Maintainer  : lmedvinsky@hotmail.com
 Stability   : experimental
-Portability : portable
+Portability : ghc
 -}
 
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Neet.Genome ( -- * Genes
                      NodeId(..)
@@ -43,11 +44,14 @@ module Neet.Genome ( -- * Genes
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Random.Class
+import Control.Monad.Random
 import Data.Map.Strict (Map)
 import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
+import Data.Set (Set)
+import qualified Data.Set as S
 
+import Control.Monad.Fresh.Class
 import Neet.Parameters
 
 -- | The IDs node genes use to refer to nodes.
@@ -124,3 +128,56 @@ mutateWeights Parameters{..} g@Genome{..} = setConns g `liftM` T.mapM mutOne con
                     return $ connWeight conn + pert
           w <- newWeight
           return $ conn { connWeight = w }
+
+
+-- | Signature of a connection, used in matching innovations fromthe same generation.
+data ConnSig = ConnSig NodeId NodeId
+             deriving (Show, Eq, Ord)
+
+
+-- | Get a 'ConnSig'
+toConnSig :: ConnGene -> ConnSig
+toConnSig gene = ConnSig (connIn gene) (connOut gene)
+
+
+-- | Mutation of additional connection. 'Map' parameter is context of previous
+-- innovations. This could be global, or per species generation.
+mutateConn :: (MonadFresh InnoId m, MonadRandom m) =>
+              Map ConnSig InnoId -> Parameters -> Genome -> m (Genome, Map ConnSig InnoId)
+mutateConn innos params g = do
+  roll <- getRandomR (0,1)
+  if roll > addConnRate params
+    then return (g, innos)
+    else case allowed of
+          [] -> return (g, innos)
+          xs -> do
+             (innos', conns') <- addRandConn innos (connGenes g)
+             return $ (g { connGenes = conns' }, innos')
+  where addConn :: MonadFresh InnoId m => ConnGene ->
+                   (Map ConnSig InnoId, Map InnoId ConnGene) ->
+                   m (Map ConnSig InnoId, Map InnoId ConnGene)
+        addConn conn (innos, conns) = case M.lookup siggy innos of
+          Just inno -> return (innos, M.insert inno conn conns)
+          Nothing -> do
+            newInno <- fresh
+            return (M.insert siggy newInno innos, M.insert newInno conn conns)
+          where siggy = toConnSig conn
+        taken :: Map ConnSig Bool
+        taken = M.fromList . map (\c -> (toConnSig c, True)) . M.elems . connGenes $ g
+        notInput (NodeGene Input _) = False
+        notInput _                  = True
+        nodes = M.toList $ nodeGenes g
+        nonInputs = filter (notInput . snd) nodes
+        makePair (n1,g1) (n2,g2) = (ConnSig n1 n2, yHint g2 <= yHint g1)
+        candidates = M.fromList $ makePair <$> nodes <*> nonInputs
+        allowed = M.toList $ M.difference candidates taken
+        pickOne :: MonadRandom m => m (ConnSig, Bool)
+        pickOne = uniform allowed
+        addRandConn :: (MonadRandom m, MonadFresh InnoId m) =>
+                       Map ConnSig InnoId -> Map InnoId ConnGene ->
+                       m (Map ConnSig InnoId, Map InnoId ConnGene)
+        addRandConn innos conns = do
+          (ConnSig inNode outNode, recc) <- pickOne
+          w <- getRandomR (-1,1)
+          let newConn = ConnGene inNode outNode w True recc
+          addConn newConn (innos,conns)

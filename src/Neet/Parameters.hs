@@ -37,4 +37,6 @@ data Parameters =
              , pertAmount     :: Double -- ^ Max amount of perturbation
              , addConnRate    :: Double -- ^ How often new connections are made
              , addNodeRate    :: Double -- ^ How often new nodes are added
+             , disableChance  :: Double -- ^ How likely that a disabled parent results
+                                        -- in a disabled child
              } 

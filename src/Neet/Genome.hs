@@ -277,11 +277,41 @@ mutate params innos g = do
   uncurry (mutateNode params) >=> uncurry (mutateConn params) $ (innos, g)
 
 
+-- | Super left biased merge -- loners on the right map don't get in
 superLeft :: Ord k => (a -> b -> c) -> (a -> c) -> Map k a -> Map k b -> Map k c
 superLeft comb mk = M.mergeWithKey (\_ a b -> Just $ comb a b) (M.map mk) (const M.empty)
 
 
-crossover :: MonadRandom m => Genome -> Genome -> m Genome
-crossover g1 g2 = undefined
+-- | Choose between two alternatives with coin chance
+flipCoin :: MonadRandom m => a -> a -> m a
+flipCoin a1 a2 = uniform [a1, a2]
+
+
+-- | Crossover on just the connections. Put the fittest map first.
+crossConns :: MonadRandom m => Parameters -> Map InnoId ConnGene -> Map InnoId ConnGene ->
+              m (Map InnoId ConnGene)
+crossConns params m1 m2 = T.sequence $ superLeft flipConn return m1 m2
+  where flipConn c1 c2 = do
+          if connEnabled c1 && connEnabled c2
+            then flipCoin c1 c2
+            else do
+            c <- flipCoin c1 c2
+            roll <- getRandomR (0,1)
+            let enabled
+                  | roll <= disableChance params = False
+                  | otherwise = True
+            return c { connEnabled = enabled }
+
+
+-- | Crossover on just nodes
+crossNodes :: MonadRandom m => Map NodeId NodeGene -> Map NodeId NodeGene ->
+              m (Map NodeId NodeGene)
+crossNodes m1 m2 = T.sequence $ superLeft flipCoin return m1 m2
+
+
+-- | Crossover. The first argument is the fittest genome.
+crossover :: MonadRandom m => Parameters -> Genome -> Genome -> m Genome
+crossover params g1 g2 = Genome `liftM` newNodes `ap` newConns `ap` return newNextNode
   where newNextNode = max (nextNode g1) (nextNode g2)
-        
+        newConns = crossConns params (connGenes g1) (connGenes g2)
+        newNodes = crossNodes (nodeGenes g1) (nodeGenes g2)

@@ -114,6 +114,7 @@ fullConn iSize oSize = do
   return $ Genome{..}
 
 
+-- | Mutate the weights - perturb or make entirely new weights
 mutateWeights :: MonadRandom m => Parameters -> Genome -> m Genome
 mutateWeights Parameters{..} g@Genome{..} = setConns g `liftM` T.mapM mutOne connGenes
   where setConns g cs = g { connGenes = cs }
@@ -153,7 +154,9 @@ mutateConn innos params g = do
           xs -> do
              (innos', conns') <- addRandConn innos (connGenes g)
              return $ (g { connGenes = conns' }, innos')
-  where addConn :: MonadFresh InnoId m => ConnGene ->
+             
+  where -- | Adds a single connection, updating the innovation context
+        addConn :: MonadFresh InnoId m => ConnGene ->
                    (Map ConnSig InnoId, Map InnoId ConnGene) ->
                    m (Map ConnSig InnoId, Map InnoId ConnGene)
         addConn conn (innos, conns) = case M.lookup siggy innos of
@@ -162,17 +165,37 @@ mutateConn innos params g = do
             newInno <- fresh
             return (M.insert siggy newInno innos, M.insert newInno conn conns)
           where siggy = toConnSig conn
+
+        -- | Which connections are already filled up by genes. Value is a dummy
+        -- value because taken is only used in difference anyway.
         taken :: Map ConnSig Bool
         taken = M.fromList . map (\c -> (toConnSig c, True)) . M.elems . connGenes $ g
+
+        -- | Whether a gene is an input gene
         notInput (NodeGene Input _) = False
         notInput _                  = True
+
+        -- | The genome's nodes, in an assoc list
         nodes = M.toList $ nodeGenes g
+
+        -- | Nodes that are not input
         nonInputs = filter (notInput . snd) nodes
+
+        -- | Make a pair of 'ConnSig' and the recurrentness
         makePair (n1,g1) (n2,g2) = (ConnSig n1 n2, yHint g2 <= yHint g1)
+
+        -- | Possible input -> output pairs
         candidates = M.fromList $ makePair <$> nodes <*> nonInputs
+
+        -- | Which pairs are not taken
         allowed = M.toList $ M.difference candidates taken
+
+        -- | Picks one of the available pairs
         pickOne :: MonadRandom m => m (ConnSig, Bool)
         pickOne = uniform allowed
+
+        -- | Randomly chooses one of the available connections and creates a
+        -- gene for it
         addRandConn :: (MonadRandom m, MonadFresh InnoId m) =>
                        Map ConnSig InnoId -> Map InnoId ConnGene ->
                        m (Map ConnSig InnoId, Map InnoId ConnGene)
@@ -190,27 +213,55 @@ mutateNode params g = do
   if roll <= addNodeRate params then addRandNode else return g
   where conns = connGenes g
         nodes = nodeGenes g
+
+        -- | Pick one of the 'InnoId' 'ConnGene' pairs from conns
         pickConn :: MonadRandom m => m (InnoId, ConnGene)
         pickConn = uniform $ M.toList conns
+
+        -- | What will the new node's ID be
         newId = nextNode g
+
+        -- | What should 'nextNode' be updated to
         newNextNode = case newId of NodeId x -> NodeId (x + 1)
+
+        -- | Takes a connection gene and its associated InnoID, and splits
+        -- it with a node
         addNode :: MonadFresh InnoId m => InnoId -> ConnGene -> m Genome
         addNode inno gene = do
           let ConnSig inId outId = toConnSig gene
+
+              -- | Gene of the input node of this connection
               inGene = nodes M.! inId
+
+              -- | Gene of the output node of this connection
               outGene = nodes M.! outId
+
+              -- | The new node gene
               newGene = NodeGene Hidden ((yHint inGene + yHint outGene) / 2)
+
+              -- | The new map of nodes, after inserting the new one
               newNodes = M.insert newId newGene nodes
+
+              -- | The disabled version of the old connection
               disabledConn = gene { connEnabled = False }
+
+              -- | The gene for the connection between the input and the new node
               backGene = ConnGene inId newId (connWeight gene) True (connRec gene)
+
+              -- | The gene for the connection between the new node and the output
               forwardGene = ConnGene newId outId 1 True (connRec gene)
           inno1 <- fresh
           inno2 <- fresh
-          let newConns = M.insert inno2 forwardGene $ M.insert inno1 backGene conns
+
+          -- | New connection map, with updated disabled connection and the new ones
+          let newConns = M.insert inno disabledConn .
+                         M.insert inno2 forwardGene $ M.insert inno1 backGene conns
           return $ g { nodeGenes = newNodes
                      , connGenes = newConns
                      , nextNode = newNextNode
                      }
+
+        -- | Pick an available connection randomly and make a gene for it
         addRandNode :: (MonadRandom m, MonadFresh InnoId m) => m Genome
         addRandNode =
           pickConn >>= uncurry addNode

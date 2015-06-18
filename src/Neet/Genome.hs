@@ -210,10 +210,10 @@ mutateConn params innos g = do
 -- | Mutation of additional node.
 mutateNode :: (MonadRandom m, MonadFresh InnoId m) =>
               Parameters -> Map ConnSig InnoId ->
-              Genome -> m (Genome, Map ConnSig InnoId)
+              Genome -> m (Map ConnSig InnoId, Genome)
 mutateNode params innos g = do
   roll <- getRandomR (0,1)
-  if roll <= addNodeRate params then addRandNode else return (g, innos)
+  if roll <= addNodeRate params then addRandNode else return (innos, g)
   where conns = connGenes g
         nodes = nodeGenes g
 
@@ -230,7 +230,7 @@ mutateNode params innos g = do
         -- | Takes a connection gene and its associated InnoID, and splits
         -- it with a node
         addNode :: MonadFresh InnoId m =>
-                   InnoId -> ConnGene -> m (Genome, Map ConnSig InnoId)
+                   InnoId -> ConnGene -> m (Map ConnSig InnoId, Genome)
         addNode inno gene = do
           let ConnSig inId outId = toConnSig gene
 
@@ -258,12 +258,12 @@ mutateNode params innos g = do
           (innos', newConns) <-
             addConn disabledConn >=> addConn backGene >=> addConn forwardGene $ (innos, conns)
 
-          return $ (g { nodeGenes = newNodes
-                      , connGenes = newConns
-                      , nextNode = newNextNode
-                      }, innos')
+          return $ (innos', g { nodeGenes = newNodes
+                              , connGenes = newConns
+                              , nextNode = newNextNode
+                              })
 
         -- | Pick an available connection randomly and make a gene for it
-        addRandNode :: (MonadRandom m, MonadFresh InnoId m) => m (Genome, Map ConnSig InnoId)
+        addRandNode :: (MonadRandom m, MonadFresh InnoId m) => m (Map ConnSig InnoId, Genome)
         addRandNode =
           pickConn >>= uncurry addNode

@@ -44,5 +44,11 @@ import Control.Monad
 -- @
 -- ('==') '<$>' 'fresh' '<*>' 'fresh' ≡ 'fresh' '*>' 'fresh' '*>' 'pure' 'False'
 -- @
+--
+-- and something similar for any number of fresh.
 class Monad m => MonadFresh s m | m -> s where
   fresh :: m s
+
+
+nFresh :: MonadFresh s m => Int -> m [s]
+nFresh n = replicateM n fresh

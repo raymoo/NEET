@@ -140,6 +140,17 @@ data ConnSig = ConnSig NodeId NodeId
 toConnSig :: ConnGene -> ConnSig
 toConnSig gene = ConnSig (connIn gene) (connOut gene)
 
+-- | Adds a single connection, updating the innovation context
+addConn :: MonadFresh InnoId m => ConnGene ->
+           (Map ConnSig InnoId, Map InnoId ConnGene) ->
+           m (Map ConnSig InnoId, Map InnoId ConnGene)
+addConn conn (innos, conns) = case M.lookup siggy innos of
+  Just inno -> return (innos, M.insert inno conn conns)
+  Nothing -> do
+    newInno <- fresh
+    return (M.insert siggy newInno innos, M.insert newInno conn conns)
+  where siggy = toConnSig conn
+
 
 -- | Mutation of additional connection. 'Map' parameter is context of previous
 -- innovations. This could be global, or per species generation.
@@ -155,17 +166,7 @@ mutateConn innos params g = do
              (innos', conns') <- addRandConn innos (connGenes g)
              return $ (g { connGenes = conns' }, innos')
              
-  where -- | Adds a single connection, updating the innovation context
-        addConn :: MonadFresh InnoId m => ConnGene ->
-                   (Map ConnSig InnoId, Map InnoId ConnGene) ->
-                   m (Map ConnSig InnoId, Map InnoId ConnGene)
-        addConn conn (innos, conns) = case M.lookup siggy innos of
-          Just inno -> return (innos, M.insert inno conn conns)
-          Nothing -> do
-            newInno <- fresh
-            return (M.insert siggy newInno innos, M.insert newInno conn conns)
-          where siggy = toConnSig conn
-
+  where 
         -- | Which connections are already filled up by genes. Value is a dummy
         -- value because taken is only used in difference anyway.
         taken :: Map ConnSig Bool

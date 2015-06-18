@@ -267,3 +267,21 @@ mutateNode params innos g = do
         addRandNode :: (MonadRandom m, MonadFresh InnoId m) => m (Map ConnSig InnoId, Genome)
         addRandNode =
           pickConn >>= uncurry addNode
+
+
+-- | Mutates the genome, using the specified parameters and innovation context.
+mutate :: (MonadRandom m, MonadFresh InnoId m) => Parameters -> Map ConnSig InnoId ->
+          Genome -> m (Map ConnSig InnoId, Genome)
+mutate params innos g = do
+  g' <- mutateWeights params g
+  uncurry (mutateNode params) >=> uncurry (mutateConn params) $ (innos, g)
+
+
+superLeft :: Ord k => (a -> b -> c) -> (a -> c) -> Map k a -> Map k b -> Map k c
+superLeft comb mk = M.mergeWithKey (\_ a b -> Just $ comb a b) (M.map mk) (const M.empty)
+
+
+crossover :: MonadRandom m => Genome -> Genome -> m Genome
+crossover g1 g2 = undefined
+  where newNextNode = max (nextNode g1) (nextNode g2)
+        

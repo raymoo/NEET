@@ -155,16 +155,16 @@ addConn conn (innos, conns) = case M.lookup siggy innos of
 -- | Mutation of additional connection. 'Map' parameter is context of previous
 -- innovations. This could be global, or per species generation.
 mutateConn :: (MonadFresh InnoId m, MonadRandom m) =>
-              Parameters -> Map ConnSig InnoId -> Genome -> m (Genome, Map ConnSig InnoId)
+              Parameters -> Map ConnSig InnoId -> Genome -> m (Map ConnSig InnoId, Genome)
 mutateConn params innos g = do
   roll <- getRandomR (0,1)
   if roll > addConnRate params
-    then return (g, innos)
+    then return (innos, g)
     else case allowed of
-          [] -> return (g, innos)
+          [] -> return (innos, g)
           xs -> do
              (innos', conns') <- addRandConn innos (connGenes g)
-             return $ (g { connGenes = conns' }, innos')
+             return $ (innos', g { connGenes = conns' })
              
   where 
         -- | Which connections are already filled up by genes. Value is a dummy

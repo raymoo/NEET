@@ -39,4 +39,13 @@ data Parameters =
              , addNodeRate    :: Double -- ^ How often new nodes are added
              , disableChance  :: Double -- ^ How likely that a disabled parent results
                                         -- in a disabled child
+             , distParams     :: DistParams -- ^ Parameters for the distance function
              } 
+
+
+data DistParams =
+  DistParams { dp1 :: Double -- ^ Coefficient to the number of excess genes
+             , dp2 :: Double -- ^ Coefficient to the number of disjoint genes
+             , dp3 :: Double -- ^ Coefficient to the average weight differences
+             } 
+  deriving (Show)

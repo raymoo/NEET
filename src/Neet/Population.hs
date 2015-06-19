@@ -35,6 +35,8 @@ module Neet.Population (
                        , PopM
                        , PopContext
                        , runPopM
+                         -- * Construction
+                       , PopSettings(..)
                        ) where
 
 import Neet.Species
@@ -120,3 +122,14 @@ instance MonadFresh InnoId PopM where
 
 runPopM :: PopContext -> PopM a -> (PopContext, a)
 runPopM pc (PopM f) = f pc
+
+
+-- | Settings for creating a new population
+data PopSettings =
+  PS { psSize    :: Int        -- ^ How big the population should be
+     , psInputs  :: Int        -- ^ Number of inputs
+     , psOutputs :: Int        -- ^ Number of outputs
+     , psParams  :: Parameters -- ^ Parameters for large species
+     , psParamsS :: Parameters -- ^ Parameters for small species
+     } 
+  deriving (Show)

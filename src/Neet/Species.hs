@@ -39,14 +39,15 @@ import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 
 
--- ^ A NEAT Species.
+-- | A NEAT Species.
 data Species =
   Species { specSize :: Int
-          , specOrgs :: MultiMap Double Genome -- ^ Map from fitnesses to genomes
-          , bestScore :: Double                -- ^ Best unadjusted fitness so far
-          , bestGen :: Genome                  -- ^ Best genome so far
-          , lastImprovement :: Int             -- ^ Number of gens ago the best score improved
-          } 
+          , specOrgs :: [Genome]    -- ^ All the organisms in this species
+          , bestScore :: Double     -- ^ Best unadjusted fitness so far
+          , bestGen :: Genome       -- ^ Best genome so far
+          , lastImprovement :: Int  -- ^ Number of gens ago the best score improved
+          }
+
 
 instance Show Species where
   show (Species siz _ scr bestGen lastImprov) =
@@ -59,4 +60,4 @@ instance Show Species where
 -- | Creates a new 'Species' with starter stats from a 'Genome'
 newSpec :: Genome -> Species
 newSpec gen = Species 0 singleton  0 gen 0
-  where singleton = MM.insert 0 gen MM.empty
+  where singleton = [gen]

@@ -324,6 +324,14 @@ crossover params g1 g2 = Genome `liftM` newNodes `ap` newConns `ap` return newNe
         newNodes = crossNodes (nodeGenes g1) (nodeGenes g2)
 
 
+-- | Breed two genomes together
+breed :: (MonadRandom m, MonadFresh InnoId m) =>
+         Parameters -> Map ConnSig InnoId -> Genome -> Genome ->
+         m (Map ConnSig InnoId, Genome)
+breed params innos g1 g2 =
+  crossover params g1 g2 >>= mutate params innos
+
+
 -- | Gets differences where they exist
 differences :: Map InnoId ConnGene -> Map InnoId ConnGene -> Map InnoId Double
 differences = M.mergeWithKey (\_ c1 c2 -> Just $ oneDiff c1 c2) (const M.empty) (const M.empty)

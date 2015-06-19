@@ -61,7 +61,7 @@ newtype NodeId = NodeId Int
 
 -- | Types of nodes
 data NodeType = Input | Hidden | Output
-              deriving (Show)
+              deriving (Show, Eq)
 
 
 -- | Node genes

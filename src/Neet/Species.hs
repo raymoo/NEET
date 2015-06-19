@@ -27,30 +27,38 @@ Stability   : experimental
 Portability : ghc
 -}
 
+{-# LANGUAGE RecordWildCards #-}
 module Neet.Species (
                       Species(..)
+                    , SpecScore(..)
                       -- * Construction
                     , newSpec
+                      -- * Update/Fitness
+                    , runFitTest
+                    , updateSpec
                     ) where
 
 
 import Neet.Genome
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
-
+import Data.List (foldl')
 
 -- | A NEAT Species.
 data Species =
   Species { specSize :: Int
           , specOrgs :: [Genome]    -- ^ All the organisms in this species
-          , bestScore :: Double     -- ^ Best unadjusted fitness so far
-          , bestGen :: Genome       -- ^ Best genome so far
+          , specScore :: SpecScore
           , lastImprovement :: Int  -- ^ Number of gens ago the best score improved
           }
 
 
+-- | Scoring data
+data SpecScore = SpecScore { bestScore :: Double, bestGen :: Genome }
+
+
 instance Show Species where
-  show (Species siz _ scr bestGen lastImprov) =
+  show (Species siz _ (SpecScore scr _) lastImprov) =
     "Species {specSize = " ++ show siz ++
     ", specOrgs = <...>, bestScore = " ++ show scr ++
     ", bestGen = <...>" ++
@@ -59,5 +67,27 @@ instance Show Species where
 
 -- | Creates a new 'Species' with starter stats from a 'Genome'
 newSpec :: Genome -> Species
-newSpec gen = Species 0 singleton  0 gen 0
+newSpec gen = Species 0 singleton (SpecScore 0 gen) 0
   where singleton = [gen]
+
+
+-- | Output the result of testing fitness
+runFitTest :: (Genome -> Double) -> Species -> (MultiMap Double Genome, SpecScore)
+runFitTest f Species{..} = (mmap, ss)
+  where mmap = foldl' (flip $ uncurry MM.insert) MM.empty $ map (\a -> (f a, a)) specOrgs
+        ss = case MM.findMaxWithValues mmap of
+              Nothing -> error "(runFitTest) folding fitness resulted in empty map!"
+              Just (scr, (x:_)) -> SpecScore scr x
+
+
+-- | Takes a new SpecScore, new organisms, and updates a species
+updateSpec :: SpecScore -> [Genome] -> Species -> Species
+updateSpec ss gs spec = spec { specSize = length gs
+                             , specOrgs = gs
+                             , specScore = newScr
+                             , lastImprovement = li
+                             }
+  where oldScr = specScore spec
+        (newScr, li)
+          | bestScore ss > bestScore oldScr = (ss, 0)
+          | otherwise                       = (oldScr, lastImprovement spec + 1)

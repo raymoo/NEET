@@ -44,7 +44,8 @@ data Parameters =
              , dropTime       :: Maybe Int -- ^ Drop a species if it doesn't improve for this long,
                                            -- and it hasn't hosted the most successful genome.
              , noCrossover    :: Double -- ^ Percent of population that mutates without crossover
-             } 
+             }
+  deriving (Show)
 
 
 data DistParams =

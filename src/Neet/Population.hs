@@ -40,6 +40,7 @@ module Neet.Population (
                        , runPopM
                          -- * Construction
                        , PopSettings(..)
+                       , newPop
                        ) where
 
 import Neet.Species

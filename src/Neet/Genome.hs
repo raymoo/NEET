@@ -43,6 +43,9 @@ module Neet.Genome ( -- * Genes
                      -- ** Breeding
                    , mutate
                    , crossover
+                   , breed
+                     -- ** Distance
+                   , distance
                    ) where
 
 import Control.Applicative

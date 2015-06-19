@@ -39,6 +39,7 @@ module Neet.Population (
 
 import Neet.Species
 import Neet.Genome
+import Neet.Parameters
 
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
@@ -64,6 +65,8 @@ data Population =
              , popBOrg   :: Genome             -- ^ Best genome so far
              , popBSpec  :: SpecId             -- ^ Id of the species that hosted the best score
              , popCont   :: PopContext         -- ^ Tracking state and fresh values
+             , popParams  :: Parameters        -- ^ Parameters for large species
+             , popParamsS :: Parameters        -- ^ Parameters for small species
              }
 
 

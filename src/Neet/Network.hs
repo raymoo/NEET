@@ -35,6 +35,8 @@ module Neet.Network (
                     , Network(..)
                       -- ** Neuron
                     , Neuron(..)
+                      -- ** Construction
+                    , mkPhenotype
                       -- ** Updates
                     , stepNeuron
                     , stepNetwork
@@ -56,6 +58,7 @@ modSig d = 1 / (1 + exp (-4.9 * d))
 data Neuron =
   Neuron { activation  :: Double            -- ^ The current activation
          , connections :: Map NodeId Double -- ^ The inputs to this Neuron
+         , yHint       :: Rational          -- ^ Visualization height
          }
   deriving (Show)
            
@@ -72,7 +75,7 @@ data Network =
 -- | Takes the previous step's activations and current inputs and gives a
 -- function to update a neuron.
 stepNeuron :: Map NodeId Double -> Neuron -> Neuron
-stepNeuron acts (Neuron _ conns) = Neuron (modSig weightedSum) conns
+stepNeuron acts (Neuron _ conns yh) = Neuron (modSig weightedSum) conns yh
   where oneFactor nId w = (acts M.! nId) * w
         weightedSum = M.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns
 
@@ -87,3 +90,24 @@ stepNetwork net@Network{..} acts ins = net { netState = newNeurons }
         modState = foldl' (flip $ uncurry M.insert) acts pairs
 
         newNeurons = M.map (stepNeuron modState) netState
+
+
+mkPhenotype :: Genome -> Network
+mkPhenotype Genome{..} = (M.foldl' addConn nodeHusk connGenes) { netInputs = ins, netOutputs = outs }
+  where addNode n@(Network _ _ s) nId (NodeGene _ yh) =
+          n { netState = M.insert nId (Neuron 0 M.empty yh) s
+            }
+
+        ins = M.keys . M.filter (\ng -> nodeType ng == Input) $ nodeGenes
+        outs = M.keys . M.filter (\ng -> nodeType ng == Output) $ nodeGenes
+
+        -- | Network without connections added
+        nodeHusk = M.foldlWithKey' addNode (Network [] [] M.empty) nodeGenes
+
+        addConn2Node nId w (Neuron a cs yh) = Neuron a (M.insert nId w cs) yh
+
+        addConn net@Network{ netState = s } ConnGene{..}
+          | not connEnabled = net
+          | otherwise =
+              let newS = M.adjust (addConn2Node connIn connWeight) connOut s
+              in net { netState = newS }

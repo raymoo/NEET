@@ -42,6 +42,8 @@ module Neet.Population (
                          -- * Construction
                        , PopSettings(..)
                        , newPop
+                         -- * Training
+                       , trainOne
                        ) where
 
 import Neet.Species

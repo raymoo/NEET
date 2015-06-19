@@ -82,13 +82,11 @@ runFitTest f Species{..} = (mmap, ss, adjF)
               Just (scr, (x:_)) -> SpecScore scr x
 
 
--- | Takes a new SpecScore, new organisms, and updates a species
-updateSpec :: SpecScore -> [Genome] -> Species -> Species
-updateSpec ss gs spec = spec { specSize = length gs
-                             , specOrgs = gs
-                             , specScore = newScr
-                             , lastImprovement = li
-                             }
+-- | Takes a new SpecScore and updates the metadata of a species
+updateSpec :: SpecScore -> Species -> Species
+updateSpec ss spec = spec { specScore = newScr
+                          , lastImprovement = li
+                          }
   where oldScr = specScore spec
         (newScr, li)
           | bestScore ss > bestScore oldScr = (ss, 0)

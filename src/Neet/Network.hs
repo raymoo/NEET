@@ -40,6 +40,8 @@ module Neet.Network (
                       -- ** Updates
                     , stepNeuron
                     , stepNetwork
+                      -- ** Output
+                    , getOutput
                     ) where
 
 import Data.Map (Map)
@@ -80,11 +82,13 @@ stepNeuron acts (Neuron _ conns yh) = Neuron (modSig weightedSum) conns yh
         weightedSum = M.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns
 
 
--- | Steps a network one step. Takes the network, a map of previous activations,
--- and the current input, minus the bias.
-stepNetwork :: Network -> Map NodeId Double -> [Double] -> Network
-stepNetwork net@Network{..} acts ins = net { netState = newNeurons }
-  where pairs = zip netInputs ins
+-- | Steps a network one step. Takes the network and the current input, minus
+-- the bias.
+stepNetwork :: Network -> [Double] -> Network
+stepNetwork net@Network{..} ins = net { netState = newNeurons }
+  where pairs = zip netInputs (ins ++ [1])
+
+        acts = M.map activation netState
 
         -- | The previous state, except updated to have new inputs
         modState = foldl' (flip $ uncurry M.insert) acts pairs
@@ -111,3 +115,8 @@ mkPhenotype Genome{..} = (M.foldl' addConn nodeHusk connGenes) { netInputs = ins
           | otherwise =
               let newS = M.adjust (addConn2Node connIn connWeight) connOut s
               in net { netState = newS }
+
+
+-- | Gets the output of the current state
+getOutput :: Network -> [Double]
+getOutput Network{..} = map (activation . (netState M.!)) netOutputs

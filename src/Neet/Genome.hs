@@ -36,6 +36,7 @@ module Neet.Genome ( -- * Genes
                    , NodeGene(..)
                    , ConnGene(..)
                    , InnoId(..)
+                   , ConnSig
                      -- * Genome
                    , Genome(..)
                      -- ** Construction

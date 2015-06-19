@@ -71,10 +71,13 @@ newSpec gen = Species 0 singleton (SpecScore 0 gen) 0
   where singleton = [gen]
 
 
--- | Output the result of testing fitness
-runFitTest :: (Genome -> Double) -> Species -> (MultiMap Double Genome, SpecScore)
-runFitTest f Species{..} = (mmap, ss)
-  where mmap = foldl' (flip $ uncurry MM.insert) MM.empty $ map (\a -> (f a, a)) specOrgs
+-- | Output the result of testing fitness. Last value is the total adjusted fitness
+runFitTest :: (Genome -> Double) -> Species -> (MultiMap Double Genome, SpecScore, Double)
+runFitTest f Species{..} = (mmap, ss, adjF)
+  where dubSize = fromIntegral specSize :: Double
+        (mmap, adjF) = foldl' accumOne (MM.empty, 0) $ map calcOne specOrgs
+        calcOne g = let fitness = f g in (fitness, g, fitness / dubSize)
+        accumOne (accM, accA) (fit, g, adj) = (MM.insert fit g accM, accA + adj)
         ss = case MM.findMaxWithValues mmap of
               Nothing -> error "(runFitTest) folding fitness resulted in empty map!"
               Just (scr, (x:_)) -> SpecScore scr x

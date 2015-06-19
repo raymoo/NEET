@@ -32,6 +32,7 @@ Portability : ghc
 module Neet.Population (
                          Population(..)
                        , PopM
+                       , PopContext
                        ) where
 
 import Neet.Species
@@ -110,5 +111,6 @@ instance MonadFresh InnoId PopM where
   fresh = PopM $ \s ->
     let inno@(InnoId x) = nextInno s
     in (s { nextInno = InnoId $ x + 1 }, inno)
+
 
 

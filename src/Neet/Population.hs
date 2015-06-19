@@ -32,6 +32,7 @@ Portability : ghc
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 module Neet.Population (
                          Population(..)
                          -- * PopM
@@ -53,7 +54,7 @@ import qualified Data.MultiMap as MM
 import Data.Map (Map)
 import qualified Data.Map as M
 
-import Data.List (foldl')
+import Data.List (foldl', maximumBy)
 
 import Data.Maybe
 
@@ -63,6 +64,10 @@ import Control.Monad.Trans.State
 
 import Control.Applicative
 import Control.Monad
+
+import Control.Arrow (first, second)
+
+import Data.Function
 
 newtype SpecId = SpecId Int
                deriving (Show, Eq, Ord)
@@ -205,3 +210,126 @@ newPop seed PS{..} = fst $ runPopM generate initCont
               popBOrg = head gens
           popCont <- PopM get
           return Population{..}
+
+
+data BS = Big | Small
+
+
+-- | Advances the population one generation with the fitness function.
+trainOnce :: (Genome -> Double) -> Population -> Population
+trainOnce f pop = generated
+  where params = popParams pop
+        paramsS = popParamsS pop
+
+        chooseParams :: Species -> Parameters
+        chooseParams s = if specSize s >= largeSize params then params else paramsS
+        {-# INLINE chooseParams #-}
+        
+        initSpecs = popSpecs pop
+
+        -- | Map to fitness data from runFitTest
+        fits = M.map (\sp -> (sp, runFitTest f sp)) initSpecs
+
+        -- | Whether a species deserves to live (did it improve recently?)
+        eugenics :: SpecId -> (Species, (MultiMap Double Genome, SpecScore, Double)) ->
+                    Maybe (Species, MultiMap Double Genome, Double)
+        eugenics sId (sp, (fitmap, ss, adj))
+          | maybe False (lastImprovement nSpec >=) (dropTime params)
+            && sId /= popBSpec pop = Nothing
+          | otherwise = Just (nSpec, fitmap, adj)
+          where nSpec = updateSpec ss sp
+
+        -- | Species that have improved recently enough.
+        masterRace :: Map SpecId (Species, MultiMap Double Genome, Double)
+        masterRace = M.mapMaybeWithKey eugenics fits
+
+        -- | toList'd version of masterRace
+        masterList :: [(SpecId,(Species, MultiMap Double Genome, Double))]
+        masterList = M.toList masterRace
+
+        -- | The best
+        idVeryBest :: (SpecId, Species)
+        idVeryBest = maximumBy (compare `on` (bestScore . specScore . snd)) $ map clean masterList
+          where clean (sId,(sp, _, _)) = (sId,sp)
+
+        veryBest = snd idVeryBest
+
+        bestId = fst idVeryBest
+
+        -- | Species to make buckets of
+        masterSpec :: Map SpecId Species
+        masterSpec = M.map (\(s,_,_) -> s) masterRace
+
+        totalFitness = M.foldl' (+) 0 . M.map (\(_,_,x) -> x) $ masterRace
+
+        totalSize = popSize pop
+
+        dubSize = fromIntegral totalSize
+
+        -- | Distribution of species.
+        candSpecs :: MonadRandom m => [(Parameters, Int, m Genome)]
+        candSpecs = zip3 ps realShares pickers
+          where initShares = map share masterList
+                share (_,(_, _, adj)) = round $ adj / totalFitness * dubSize
+                remaining = totalSize - foldl' (+) 0 initShares
+                distributeRem n [] = error "Should run out of numbers first"
+                distributeRem n l@(x:xs)
+                  | n > 0 = x + 1 : distributeRem (n - 1) xs
+                  | otherwise = l
+                realShares = distributeRem remaining initShares
+                pickers :: MonadRandom m => [m Genome]
+                pickers = map picker masterList
+                  where picker (_,(_, mmap, _)) =
+                          fromList . map (\(d,g) -> (g, toRational d)) $ MM.toList mmap
+                ps = map (\(_,(s,_,_)) -> chooseParams s) masterList
+
+        applyN :: Monad m => Int -> (a -> m a) -> a -> m a
+        applyN 0 f x = return x
+        applyN n f !x = f x >>= applyN (n - 1) f
+
+        -- | Generate the genomes for a species
+        specGens :: (MonadFresh InnoId m, MonadRandom m) =>
+                    (Parameters, Int, m Genome) -> m [Genome]
+        specGens (p, n, gen) = liftM snd $ applyN n genOne (M.empty, [])
+          where genOne (innos, gs) = do
+                  roll <- getRandomR (0,1)
+                  if roll <= noCrossover p
+                    then do
+                    parent <- gen
+                    (innos', g) <- mutate p innos parent
+                    return (innos', g:gs)
+                    else do
+                    mom <- gen
+                    dad <- gen
+                    g <- crossover p mom dad
+                    return (innos, g:gs)
+
+        allGens :: (MonadRandom m, MonadFresh InnoId m) => m [Genome]
+        allGens = liftM concat $ mapM specGens candSpecs
+
+        genNewSpecies :: (MonadRandom m, MonadFresh InnoId m) => m (Map SpecId Species, SpecId)
+        genNewSpecies = do
+          gens <- allGens
+          return $ runSpecM (speciate params masterSpec gens) (nextSpec pop)
+
+        generated :: Population
+        generated = fst $ runPopM generate (popCont pop)
+
+        generate :: PopM Population
+        generate = do
+          (specs, nextSpec') <- genNewSpecies
+          let bScoreNow = (bestScore . specScore) veryBest
+              bOrgNow = (bestGen . specScore) veryBest
+              bSpecNow = bestId
+              (bScore, bOrg, bSpec) =
+                if bScoreNow > popBScore pop
+                then (bScoreNow, bOrgNow, bSpecNow)
+                else (popBScore pop, popBOrg pop, popBSpec pop)
+          cont' <- PopM get
+          return pop { popSpecs = specs
+                     , popBScore = bScore
+                     , popBOrg = bOrg
+                     , popBSpec = bSpec
+                     , popCont = cont'
+                     , nextSpec = nextSpec'
+                     } 

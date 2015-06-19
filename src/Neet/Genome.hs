@@ -315,3 +315,37 @@ crossover params g1 g2 = Genome `liftM` newNodes `ap` newConns `ap` return newNe
   where newNextNode = max (nextNode g1) (nextNode g2)
         newConns = crossConns params (connGenes g1) (connGenes g2)
         newNodes = crossNodes (nodeGenes g1) (nodeGenes g2)
+
+
+-- | Gets differences where they exist
+differences :: Map InnoId ConnGene -> Map InnoId ConnGene -> Map InnoId Double
+differences = M.mergeWithKey (\_ c1 c2 -> Just $ oneDiff c1 c2) (const M.empty) (const M.empty)
+  where oneDiff c1 c2 = abs $ connWeight c1 - connWeight c2
+
+
+-- | Genetic distance between two genomes
+distance :: Parameters -> Genome -> Genome -> Double
+distance params g1 g2 = c1 * exFactor + c2 * disFactor + c3 * weightFactor
+  where DistParams c1 c2 c3 = distParams params
+
+        conns1 = connGenes g1
+        conns2 = connGenes g2
+        
+        weightDiffs = differences conns1 conns2
+
+        weightFactor = M.foldl (+) 0 weightDiffs / fromIntegral (M.size weightDiffs)
+
+        ids1 = M.keysSet conns1
+        ids2 = M.keysSet conns2
+
+        -- | The lower of the top bounds of innovation numbers
+        edge = min (S.findMax ids1) (S.findMax ids2)
+
+        -- | Excess and Disjoint
+        exJoints = (ids1 `S.difference` ids2) `S.union` (ids2 `S.difference` ids1)
+
+        (excess, disjoint) = S.partition (<= edge) exJoints
+
+        exFactor = fromIntegral $ S.size excess
+
+        disFactor = fromIntegral $ S.size disjoint

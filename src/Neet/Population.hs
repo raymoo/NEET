@@ -185,3 +185,21 @@ speciate params specs gs = do
           | otherwise = Just $ (sId, Species (length gs) gs scr imp)
         newSpecies (SB _ _ []) = Nothing
         newSpecies (SB sId _ (g:gs)) = Just $ (sId, newSpec g gs)
+
+
+-- | Generates a fully connected starter population, given a seed.
+newPop :: Int -> PopSettings -> Population
+newPop seed PS{..} = fst $ runPopM generate initCont
+  where popSize = psSize
+        popBScore = 0
+        popBSpec = SpecId 1
+        initCont = PC (InnoId $ psInputs * psOutputs + 2) (mkStdGen seed)
+        popParams = psParams
+        popParamsS = psParamsS
+        generateGens = replicateM psSize (fullConn psInputs psOutputs)
+        generate = do
+          gens <- generateGens
+          let (popSpecs, nextSpec) = runSpecM (speciate psParams M.empty gens) (SpecId 1)
+              popBOrg = head gens
+          popCont <- PopM get
+          return Population{..}

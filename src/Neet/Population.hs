@@ -31,8 +31,10 @@ Portability : ghc
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Neet.Population (
                          Population(..)
+                         -- * PopM
                        , PopM
                        , PopContext
+                       , runPopM
                        ) where
 
 import Neet.Species
@@ -113,4 +115,5 @@ instance MonadFresh InnoId PopM where
     in (s { nextInno = InnoId $ x + 1 }, inno)
 
 
-
+runPopM :: PopContext -> PopM a -> (PopContext, a)
+runPopM pc (PopM f) = f pc

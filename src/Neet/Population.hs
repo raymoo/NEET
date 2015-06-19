@@ -79,13 +79,14 @@ data Population =
              , popParams  :: Parameters        -- ^ Parameters for large species
              , popParamsS :: Parameters        -- ^ Parameters for small species
              }
+  deriving (Show)
 
 
 data PopContext =
   PC { nextInno :: InnoId
      , randGen  :: StdGen
      } 
-
+  deriving (Show)
 
 -- | Custom state monad
 newtype PopM a = PopM (State PopContext a)

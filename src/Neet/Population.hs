@@ -30,6 +30,8 @@ Portability : ghc
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Neet.Population (
+                         Population(..)
+                       , PopM
                        ) where
 
 import Neet.Species
@@ -58,12 +60,18 @@ data Population =
              , popBScore :: Double             -- ^ Best score so far
              , popBOrg   :: Genome             -- ^ Best genome so far
              , popBSpec  :: SpecId             -- ^ Id of the species that hosted the best score
-             , nextInno  :: InnoId             -- ^ The next innovation
-             , randGen   :: StdGen
+             , popCont   :: PopContext         -- ^ Tracking state and fresh values
              }
 
 
-newtype PopM a = PopM (Population -> (Population, a))
+data PopContext =
+  PC { nextInno :: InnoId
+     , randGen  :: StdGen
+     } 
+
+
+-- | Custom state monad
+newtype PopM a = PopM (PopContext -> (PopContext, a))
             deriving (Functor)
 
 
@@ -102,3 +110,5 @@ instance MonadFresh InnoId PopM where
   fresh = PopM $ \s ->
     let inno@(InnoId x) = nextInno s
     in (s { nextInno = InnoId $ x + 1 }, inno)
+
+

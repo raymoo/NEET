@@ -27,7 +27,7 @@ Stability   : experimental
 Portability : portable
 -}
 
-module Neet.Parameters (Parameters(..), DistParams(..), defParams, defDP ) where
+module Neet.Parameters (Parameters(..), DistParams(..), defParams, defDP, smallParams ) where
 
 
 -- | The genetic parameters

@@ -27,6 +27,7 @@ Stability   : experimental
 Portability : ghc
 -}
 
+{-# LANGUAGE RecordWildCards #-}
 module Neet.Network (
                       -- * Sigmoid
                       modSig
@@ -34,12 +35,14 @@ module Neet.Network (
                     , Network(..)
                       -- ** Neuron
                     , Neuron(..)
-                      -- *** Updates
+                      -- ** Updates
                     , stepNeuron
+                    , stepNetwork
                     ) where
 
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.List (foldl')
 
 import Neet.Genome
 
@@ -66,8 +69,21 @@ data Network =
   deriving (Show)
 
 
--- | Takes the previous step's activations and gives a function to update a neuron.
+-- | Takes the previous step's activations and current inputs and gives a
+-- function to update a neuron.
 stepNeuron :: Map NodeId Double -> Neuron -> Neuron
 stepNeuron acts (Neuron _ conns) = Neuron (modSig weightedSum) conns
   where oneFactor nId w = (acts M.! nId) * w
         weightedSum = M.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns
+
+
+-- | Steps a network one step. Takes the network, a map of previous activations,
+-- and the current input, minus the bias.
+stepNetwork :: Network -> Map NodeId Double -> [Double] -> Network
+stepNetwork net@Network{..} acts ins = net { netState = newNeurons }
+  where pairs = zip netInputs ins
+
+        -- | The previous state, except updated to have new inputs
+        modState = foldl' (flip $ uncurry M.insert) acts pairs
+
+        newNeurons = M.map (stepNeuron modState) netState

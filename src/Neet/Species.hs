@@ -65,10 +65,9 @@ instance Show Species where
     ", lastImprovement = " ++ show lastImprov ++ "}"
 
 
--- | Creates a new 'Species' with starter stats from a 'Genome'
-newSpec :: Genome -> Species
-newSpec gen = Species 0 singleton (SpecScore 0 gen) 0
-  where singleton = [gen]
+-- | Creates a new 'Species' with starter stats from a 'Genome' and the rest
+newSpec :: Genome -> [Genome] -> Species
+newSpec gen gens = Species 0 (gen:gens) (SpecScore 0 gen) 0
 
 
 -- | Output the result of testing fitness. Last value is the total adjusted fitness

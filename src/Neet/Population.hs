@@ -159,19 +159,29 @@ shuttleOrgs p@Parameters{..} buckets gs = foldM shutOne buckets gs
           return $ [SB newId g [g]]
 
 
+zipWithDefaults :: (a -> b -> Maybe c) -> (a -> Maybe c) -> (b -> Maybe c) -> [a] -> [b] -> [c]
+zipWithDefaults f da db [] bs = mapMaybe db bs
+zipWithDefaults f da db as [] = mapMaybe da as
+zipWithDefaults f da db (a:as) (b:bs) =
+  case f a b of
+   Just res -> res : zipWithDefaults f da db as bs
+   Nothing -> zipWithDefaults f da db as bs
+
+
 -- | Speciation function
 speciate :: MonadFresh SpecId m =>
             Parameters -> Map SpecId Species -> [Genome] -> m (Map SpecId Species)
 speciate params specs gs = do
   filled <- fill
-  let zipped = zip specL filled
-      pairs = mapMaybe mkSpecies zipped
-  return $ M.fromList pairs
+  let zipped = zipWithDefaults mkSpecies (const Nothing) newSpecies specL filled
+  return $ M.fromList zipped
   where oneBucket (k, Species _ (rep:_) _ _) = SB k rep []
         assocs = M.toList specs
         specL = map snd assocs
         buckets = map oneBucket assocs
         fill = shuttleOrgs params buckets gs
-        mkSpecies (Species _ _ scr imp, SB sId _ gs)
+        mkSpecies (Species _ _ scr imp) (SB sId _ gs)
           | null gs = Nothing
           | otherwise = Just $ (sId, Species (length gs) gs scr imp)
+        newSpecies (SB _ _ []) = Nothing
+        newSpecies (SB sId _ (g:gs)) = Just $ (sId, newSpec g gs)

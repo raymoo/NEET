@@ -17,7 +17,8 @@ extra-source-files:  README
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Neet.Genome, Control.Monad.Fresh.Class, Neet.Parameters, Neet.Network
+  exposed-modules:     Neet.Genome, Control.Monad.Fresh.Class, Neet.Parameters, Neet.Network,
+                       Neet.Species
   -- other-modules:       
   other-extensions:    FunctionalDependencies, MultiParamTypeClasses
   build-depends:       base >=4.7 && <4.8, MonadRandom >=0.4 && <0.5,

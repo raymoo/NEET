@@ -31,8 +31,11 @@ module Neet.Network (
                       -- * Sigmoid
                       modSig
                       -- * Network
-                    , Neuron(..)
                     , Network(..)
+                      -- ** Neuron
+                    , Neuron(..)
+                      -- *** Updates
+                    , stepNeuron
                     ) where
 
 import Data.Map (Map)
@@ -61,3 +64,10 @@ data Network =
           , netState    :: Map NodeId Neuron
           } 
   deriving (Show)
+
+
+-- | Takes the previous step's activations and gives a function to update a neuron.
+stepNeuron :: Map NodeId Double -> Neuron -> Neuron
+stepNeuron acts (Neuron _ conns) = Neuron (modSig weightedSum) conns
+  where oneFactor nId w = (acts M.! nId) * w
+        weightedSum = M.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns

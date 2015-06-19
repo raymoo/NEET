@@ -27,7 +27,11 @@ Stability   : experimental
 Portability : ghc
 -}
 
-module Neet.Species () where
+module Neet.Species (
+                      Species(..)
+                      -- * Construction
+                    , newSpec
+                    ) where
 
 
 import Neet.Genome
@@ -51,3 +55,8 @@ instance Show Species where
     ", bestGen = <...>" ++
     ", lastImprovement = " ++ show lastImprov ++ "}"
 
+
+-- | Creates a new 'Species' with starter stats from a 'Genome'
+newSpec :: Genome -> Species
+newSpec gen = Species 0 singleton  0 gen 0
+  where singleton = MM.insert 0 gen MM.empty

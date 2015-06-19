@@ -40,6 +40,9 @@ module Neet.Genome ( -- * Genes
                    , Genome(..)
                      -- ** Construction
                    , fullConn
+                     -- ** Breeding
+                   , mutate
+                   , crossover
                    ) where
 
 import Control.Applicative

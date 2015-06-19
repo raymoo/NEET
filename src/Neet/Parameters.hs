@@ -52,6 +52,7 @@ data DistParams =
   DistParams { dp1 :: Double -- ^ Coefficient to the number of excess genes
              , dp2 :: Double -- ^ Coefficient to the number of disjoint genes
              , dp3 :: Double -- ^ Coefficient to the average weight differences
+             , delta_t :: Double -- ^ How close counts as the same species
              } 
   deriving (Show)
 
@@ -80,4 +81,4 @@ smallParams = defParams { addConnRate = 0.05 }
 
 -- | Parameters used for distance in the paper
 defDP :: DistParams
-defDP = DistParams 1 1 0.4
+defDP = DistParams 1 1 0.4 3

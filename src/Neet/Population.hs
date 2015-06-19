@@ -30,6 +30,8 @@ Portability : ghc
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Neet.Population (
                          Population(..)
                          -- * PopM
@@ -50,6 +52,10 @@ import qualified Data.MultiMap as MM
 import Data.Map (Map)
 import qualified Data.Map as M
 
+import Data.List (foldl')
+
+import Data.Maybe
+
 import Control.Monad.Random
 import Control.Monad.Fresh.Class
 import Control.Monad.Trans.State
@@ -69,6 +75,7 @@ data Population =
              , popBOrg   :: Genome             -- ^ Best genome so far
              , popBSpec  :: SpecId             -- ^ Id of the species that hosted the best score
              , popCont   :: PopContext         -- ^ Tracking state and fresh values
+             , nextSpec  :: SpecId             -- ^ The next species ID
              , popParams  :: Parameters        -- ^ Parameters for large species
              , popParamsS :: Parameters        -- ^ Parameters for small species
              }
@@ -119,3 +126,52 @@ data PopSettings =
      , psParamsS :: Parameters -- ^ Parameters for small species
      } 
   deriving (Show)
+
+
+newtype SpecM a = SM (State SpecId a)
+                deriving (Functor, Applicative, Monad)
+
+
+instance MonadFresh SpecId SpecM where
+  fresh = SM . state $ \s@(SpecId x) -> (s, SpecId $ x + 1)
+
+
+runSpecM :: SpecM a -> SpecId -> (a, SpecId)
+runSpecM (SM ma) = runState ma
+
+
+-- | Buckets for speciation
+data SpecBucket =
+  SB SpecId Genome [Genome]
+
+
+-- | Speciation helper
+shuttleOrgs :: MonadFresh SpecId m =>
+               Parameters -> [SpecBucket] -> [Genome] -> m [SpecBucket]
+shuttleOrgs p@Parameters{..} buckets gs = foldM shutOne buckets gs
+  where DistParams{..} = distParams
+        shutOne :: MonadFresh SpecId m => [SpecBucket] -> Genome -> m [SpecBucket]
+        shutOne (SB sId rep gs:bs) g
+          | distance p g rep <= delta_t = return $ SB sId rep (g:gs) : bs
+          | otherwise = liftM (SB sId rep gs :) $ shutOne bs g
+        shutOne [] g = do
+          newId <- fresh
+          return $ [SB newId g [g]]
+
+
+-- | Speciation function
+speciate :: MonadFresh SpecId m =>
+            Parameters -> Map SpecId Species -> [Genome] -> m (Map SpecId Species)
+speciate params specs gs = do
+  filled <- fill
+  let zipped = zip specL filled
+      pairs = mapMaybe mkSpecies zipped
+  return $ M.fromList pairs
+  where oneBucket (k, Species _ (rep:_) _ _) = SB k rep []
+        assocs = M.toList specs
+        specL = map snd assocs
+        buckets = map oneBucket assocs
+        fill = shuttleOrgs params buckets gs
+        mkSpecies (Species _ _ scr imp, SB sId _ gs)
+          | null gs = Nothing
+          | otherwise = Just $ (sId, Species (length gs) gs scr imp)

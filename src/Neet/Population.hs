@@ -28,6 +28,7 @@ Portability : ghc
 -}
 
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Neet.Population (
                          Population(..)
@@ -51,6 +52,7 @@ import qualified Data.Map as M
 
 import Control.Monad.Random
 import Control.Monad.Fresh.Class
+import Control.Monad.Trans.State
 
 import Control.Applicative
 import Control.Monad
@@ -79,49 +81,33 @@ data PopContext =
 
 
 -- | Custom state monad
-newtype PopM a = PopM (PopContext -> (PopContext, a))
-            deriving (Functor)
-
-
-instance Applicative PopM where
-  pure a = PopM $ \s -> (s, a)
-  PopM f <*> PopM g = PopM $ \s ->
-    let (s', f') = f s
-        (s'', a) = g s'
-    in (s'', f' a)
-
-
-instance Monad PopM where
-  return = pure
-  PopM f >>= k = PopM $ \s ->
-    let (s', a) = f s
-        PopM g = k a
-    in g s'
+newtype PopM a = PopM (State PopContext a)
+            deriving (Functor, Applicative, Monad)
 
 
 instance MonadRandom PopM where
-  getRandom = PopM $ \s ->
+  getRandom = PopM . state $ \s ->
     let (r, gen) = random (randGen s)
-    in (s { randGen = gen }, r)
-  getRandoms = PopM $ \s ->
+    in (r, s { randGen = gen })
+  getRandoms = PopM . state $ \s ->
     let (g1, g2) = split $ randGen s
-    in (s { randGen = g2 }, randoms g1)
-  getRandomR range = PopM $ \s ->
+    in (randoms g1, s { randGen = g2 })
+  getRandomR range = PopM . state $ \s ->
     let (r, gen) = randomR range (randGen s)
-    in (s { randGen = gen }, r)
-  getRandomRs range = PopM $ \s ->
+    in (r, s { randGen = gen })
+  getRandomRs range = PopM . state $ \s ->
     let (g1, g2) = split $ randGen s
-    in (s { randGen = g2 }, randomRs range g1)
+    in (randomRs range g1, s { randGen = g2 })
 
 
 instance MonadFresh InnoId PopM where
-  fresh = PopM $ \s ->
+  fresh = PopM . state $ \s ->
     let inno@(InnoId x) = nextInno s
-    in (s { nextInno = InnoId $ x + 1 }, inno)
+    in (inno, s { nextInno = InnoId $ x + 1 })
 
 
-runPopM :: PopContext -> PopM a -> (PopContext, a)
-runPopM pc (PopM f) = f pc
+runPopM :: PopM a -> PopContext -> (a, PopContext)
+runPopM (PopM ma) = runState ma
 
 
 -- | Settings for creating a new population

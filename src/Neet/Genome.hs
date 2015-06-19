@@ -99,18 +99,20 @@ data Genome =
 -- | Takes the number of inputs, the number of outputs, and gives a genome with
 -- the inputs fully connected to the outputs with random weights. The order of
 -- the connections are deterministic, so when generating a population, you
--- can just start the innovation number at iSize * oSize + 1
+-- can just start the innovation number at (iSize + 1) * oSize, since the network
+-- includes an additional input for the bias.
 fullConn :: MonadRandom m => Int -> Int -> m Genome
 fullConn iSize oSize = do
-  let inIDs = map NodeId [1..iSize]
-      outIDs = map NodeId [iSize + 1..oSize + iSize]
+  let inCount = iSize + 1
+      inIDs = map NodeId [1..inCount]
+      outIDs = map NodeId [inCount + 1..oSize + inCount]
       inputGenes = zip inIDs $ repeat (NodeGene Input 0)
       outputGenes = zip outIDs $ repeat (NodeGene Output 1)
       nodeGenes = M.fromList $ inputGenes ++ outputGenes
-      nextNode = NodeId $ iSize + oSize + 1
+      nextNode = NodeId $ inCount + oSize + 1
       nodePairs = (,) <$> inIDs <*> outIDs
   conns <- zipWith (\(inN, outN) w -> ConnGene inN outN w True False) nodePairs `liftM` getRandomRs (-1,1)
-  let connGenes = M.fromList $ zip (map InnoId [1..iSize * oSize]) conns
+  let connGenes = M.fromList $ zip (map InnoId [1..]) conns
   return $ Genome{..}
 
 

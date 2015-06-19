@@ -43,7 +43,7 @@ module Neet.Population (
                        , PopSettings(..)
                        , newPop
                          -- * Training
-                       , trainOne
+                       , trainOnce
                        ) where
 
 import Neet.Species
@@ -78,12 +78,12 @@ newtype SpecId = SpecId Int
 -- | A NEAT Population
 data Population =
   Population { popSize   :: Int                -- ^ Size of the population
-             , popSpecs  :: Map SpecId Species -- ^ The species
-             , popBScore :: Double             -- ^ Best score so far
-             , popBOrg   :: Genome             -- ^ Best genome so far
-             , popBSpec  :: SpecId             -- ^ Id of the species that hosted the best score
-             , popCont   :: PopContext         -- ^ Tracking state and fresh values
-             , nextSpec  :: SpecId             -- ^ The next species ID
+             , popSpecs  :: !(Map SpecId Species) -- ^ The species
+             , popBScore :: !Double             -- ^ Best score so far
+             , popBOrg   :: !Genome             -- ^ Best genome so far
+             , popBSpec  :: !SpecId             -- ^ Id of the species that hosted the best score
+             , popCont   :: !PopContext         -- ^ Tracking state and fresh values
+             , nextSpec  :: !SpecId             -- ^ The next species ID
              , popParams  :: Parameters        -- ^ Parameters for large species
              , popParamsS :: Parameters        -- ^ Parameters for small species
              }
@@ -335,3 +335,12 @@ trainOnce f pop = generated
                      , popCont = cont'
                      , nextSpec = nextSpec'
                      } 
+
+
+-- | Train the population n times. Values less than 1 return the original.
+trainN :: Int -> (Genome -> Double) -> Population -> Population
+trainN n f p
+  | n <= 0 = p
+  | otherwise = applyN n (trainOnce f) p
+  where applyN 0 f !x = x
+        applyN n f !x = applyN (n - 1) f (f x)

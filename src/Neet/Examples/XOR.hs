@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -}
 
 {-|
-Module      : Neet.Tests.XOR
+Module      : Neet.Examples.XOR
 Description : Testing the algorithm on XOR
 Copyright   : (c) Leon Medvinsky, 2015
 
@@ -27,7 +27,7 @@ Stability   : experimental
 Portability : ghc
 -}
 
-module Neet.Tests.XOR (xorFit, andFit, orFit) where
+module Neet.Examples.XOR (xorFit, andFit, orFit) where
 
 import Neet.Population
 import Neet.Genome

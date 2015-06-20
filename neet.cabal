@@ -6,6 +6,7 @@ version:             0.1.0.0
 synopsis:            A NEAT library for Haskell
 -- description:         
 homepage:            https://github.com/raymoo/NEET
+bug-reports:         https://github.com/raymoo/NEET/issues
 license:             GPL-3
 license-file:        LICENSE
 author:              Leon Medvinsky
@@ -15,6 +16,10 @@ category:            AI
 build-type:          Simple
 extra-source-files:  README
 cabal-version:       >=1.10
+description:
+  This package provides functions for creating, training, and using NEAT neural
+  networks.
+
 
 library
   exposed-modules:     Neet.Genome, Control.Monad.Fresh.Class, Neet.Parameters, Neet.Network,
@@ -27,4 +32,4 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-  ghc-options: -Wall -fwarn-tabs -O2
+  ghc-options: -Wall -fwarn-tabs

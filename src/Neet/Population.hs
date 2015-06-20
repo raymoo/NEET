@@ -206,7 +206,7 @@ newPop seed PS{..} = fst $ runPopM generate initCont
         initCont = PC (InnoId $ psInputs * psOutputs + 2) (mkStdGen seed)
         popParams = psParams
         popParamsS = psParamsS
-        generateGens = replicateM psSize (fullConn psInputs psOutputs)
+        generateGens = replicateM psSize (fullConn psParams psInputs psOutputs)
         generate = do
           gens <- generateGens
           let (popSpecs, nextSpec) = runSpecM (speciate psParams M.empty gens) (SpecId 1)

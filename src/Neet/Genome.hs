@@ -29,6 +29,8 @@ Portability : ghc
 
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Neet.Genome ( -- * Genes
                      NodeId(..)
@@ -47,6 +49,8 @@ module Neet.Genome ( -- * Genes
                    , breed
                      -- ** Distance
                    , distance
+                     -- ** Visualization
+                   , renderGenome
                    ) where
 
 import Control.Applicative
@@ -58,12 +62,17 @@ import qualified Data.Map.Strict as M
 import Data.Set (Set)
 import qualified Data.Set as S
 
+import Data.Maybe
+
 import Control.Monad.Fresh.Class
 import Neet.Parameters
 
+import Data.GraphViz
+import Data.GraphViz.Attributes.Complete
+
 -- | The IDs node genes use to refer to nodes.
 newtype NodeId = NodeId Int
-               deriving (Show, Eq, Ord)
+               deriving (Show, Eq, Ord, PrintDot)
 
 
 -- | Types of nodes
@@ -108,8 +117,8 @@ data Genome =
 -- the connections are deterministic, so when generating a population, you
 -- can just start the innovation number at (iSize + 1) * oSize, since the network
 -- includes an additional input for the bias.
-fullConn :: MonadRandom m => Int -> Int -> m Genome
-fullConn iSize oSize = do
+fullConn :: MonadRandom m => Parameters -> Int -> Int -> m Genome
+fullConn Parameters{..} iSize oSize = do
   let inCount = iSize + 1
       inIDs = map NodeId [1..inCount]
       outIDs = map NodeId [inCount + 1..oSize + inCount]
@@ -118,7 +127,7 @@ fullConn iSize oSize = do
       nodeGenes = M.fromList $ inputGenes ++ outputGenes
       nextNode = NodeId $ inCount + oSize + 1
       nodePairs = (,) <$> inIDs <*> outIDs
-  conns <- zipWith (\(inN, outN) w -> ConnGene inN outN w True False) nodePairs `liftM` getRandomRs (-1,1)
+  conns <- zipWith (\(inN, outN) w -> ConnGene inN outN w True False) nodePairs `liftM` getRandomRs (-weightRange,weightRange)
   let connGenes = M.fromList $ zip (map InnoId [1..]) conns
   return $ Genome{..}
 
@@ -264,10 +273,10 @@ mutateNode params innos g = do
               disabledConn = gene { connEnabled = False }
 
               -- | The gene for the connection between the input and the new node
-              backGene = ConnGene inId newId (connWeight gene) True (connRec gene)
+              backGene = ConnGene inId newId 1 True (connRec gene)
 
               -- | The gene for the connection between the new node and the output
-              forwardGene = ConnGene newId outId 1 True (connRec gene)
+              forwardGene = ConnGene newId outId (connWeight gene) True (connRec gene)
               
           (innos', newConns) <-
             addConn backGene >=> addConn forwardGene $ (innos, conns)
@@ -371,3 +380,49 @@ distance params g1 g2 = c1 * exFactor + c2 * disFactor + c3 * weightFactor
         exFactor = fromIntegral $ S.size excess
 
         disFactor = fromIntegral $ S.size disjoint
+
+
+graphParams :: GraphvizParams NodeId NodeGene Double Rational Rational
+graphParams =
+  Params { isDirected = True
+         , globalAttributes = [ GraphAttrs [ RankDir FromLeft
+                                           , Splines LineEdges
+                                           ]
+                              , NodeAttrs [ FixedSize SetNodeSize
+                                          ]
+                              ]
+         , clusterBy = categorizer
+         , isDotCluster = const True
+         , clusterID = iderizer
+         , fmtCluster = clusterizer
+         , fmtNode = const []
+         , fmtEdge = \(_,_,w) -> [ toLabel w ]
+         }
+  where categorizer (nId, ng) = C (yHint ng) (N (nId, yHint ng))
+        iderizer 0 = Str "Input Layer"
+        iderizer 1 = Str "Output Layer"
+        iderizer rat = Num (Dbl $ fromRational rat)
+        whiteAttr = Color [WC (X11Color White) Nothing]
+        blueAttr = Color [WC (X11Color Blue4) Nothing ]
+        redAttr = Color [WC (X11Color Red2) Nothing ]
+        greenAttr = Color [WC (X11Color SeaGreen) Nothing ]
+        solidAttr = Style [ SItem Solid [] ]
+        circAttr = Shape Circle
+        clusterizer 0 = [ GraphAttrs [ whiteAttr, rank MinRank ]
+                        , NodeAttrs [ solidAttr, blueAttr, circAttr ]
+                        ]
+        clusterizer 1 = [ GraphAttrs [ whiteAttr, rank MaxRank ]
+                        , NodeAttrs [ solidAttr, redAttr, circAttr ]
+                        ]
+        clusterizer _ = [ GraphAttrs [ whiteAttr ]
+                        , NodeAttrs [ solidAttr, greenAttr, circAttr ]
+                        ]
+
+
+renderGenome :: Genome -> IO ()
+renderGenome g = runGraphvizCanvas Dot graph Xlib
+  where dg = DotGraph True True Nothing
+        nodes = M.toList . nodeGenes $ g
+        edges = mapMaybe mkEdge . M.elems . connGenes $ g
+        mkEdge ConnGene{..} = if connEnabled then Just (connIn, connOut, connWeight) else Nothing
+        graph = graphElemsToDot graphParams nodes edges

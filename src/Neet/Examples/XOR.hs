@@ -33,8 +33,6 @@ module Neet.Examples.XOR (xorFit, andFit, orFit) where
 import Neet.Genome
 import Neet.Network
 
-import qualified Data.Map as M
-
 
 boolQuestions :: [[Double]]
 boolQuestions = [ [0, 0]

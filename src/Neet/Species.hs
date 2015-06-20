@@ -80,6 +80,7 @@ runFitTest f Species{..} = (mmap, ss, totF / dubSize)
         ss = case MM.findMaxWithValues mmap of
               Nothing -> error "(runFitTest) folding fitness resulted in empty map!"
               Just (scr, (x:_)) -> SpecScore scr x
+              _       -> error "(runFitTest) MultiMap had a key with empty list!"
 
 
 -- | Takes a new SpecScore and updates the metadata of a species

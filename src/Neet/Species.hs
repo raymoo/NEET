@@ -67,7 +67,7 @@ instance Show Species where
 
 -- | Creates a new 'Species' with starter stats from a 'Genome' and the rest
 newSpec :: Genome -> [Genome] -> Species
-newSpec gen gens = Species 0 (gen:gens) (SpecScore 0 gen) 0
+newSpec gen gens = Species (length gens + 1) (gen:gens) (SpecScore 0 gen) 0
 
 
 -- | Output the result of testing fitness. Last value is the total adjusted fitness

@@ -44,6 +44,7 @@ module Neet.Population (
                        , newPop
                          -- * Training
                        , trainOnce
+                       , trainN
                        ) where
 
 import Neet.Species
@@ -281,8 +282,12 @@ trainOnce f pop = generated
                 realShares = distributeRem remaining initShares
                 pickers :: MonadRandom m => [m Genome]
                 pickers = map picker masterList
-                  where picker (_,(_, mmap, _)) =
-                          fromList . map (\(d,g) -> (g, toRational d)) $ MM.toList mmap
+                  where picker (_,(s, mmap, _)) =
+                          let numToTake = specSize s `div` 5 + 1
+                              desc = M.toDescList $ MM.toMap mmap
+                              toPairs (k, vs) = map (\v -> (k,v)) vs
+                              culled = take numToTake $ desc >>= toPairs
+                          in fromList . map (\(d,g) -> (g, toRational d)) $ culled
                 ps = map (\(_,(s,_,_)) -> chooseParams s) masterList
 
         applyN :: Monad m => Int -> (a -> m a) -> a -> m a
@@ -303,8 +308,8 @@ trainOnce f pop = generated
                     else do
                     mom <- gen
                     dad <- gen
-                    g <- crossover p mom dad
-                    return (innos, g:gs)
+                    (innos', g) <- breed p innos mom dad
+                    return (innos', g:gs)
 
         allGens :: (MonadRandom m, MonadFresh InnoId m) => m [Genome]
         allGens = liftM concat $ mapM specGens candSpecs

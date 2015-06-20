@@ -30,7 +30,7 @@ Stability   : experimental
 Portability : portable
 -}
 
-module Control.Monad.Fresh.Class (MonadFresh(..)) where
+module Control.Monad.Fresh.Class (MonadFresh(..), nFresh) where
 
 
 

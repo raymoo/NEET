@@ -103,8 +103,8 @@ stepNetwork net@Network{..} ins = net { netState = newNeurons }
 
 -- | Steps a network for at least its depth
 snapshot :: Network -> [Double] -> Network
-snapshot net ds = go (netDepth net - 1) ds
-  where go 0 ds = net
+snapshot net = go (netDepth net - 1)
+  where go 0 _  = net
         go n ds = stepNetwork (go (n - 1) ds) ds
 
 

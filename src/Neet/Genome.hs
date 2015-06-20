@@ -419,6 +419,10 @@ graphParams =
                         ]
 
 
+-- | This graph produced is ugly and janky and will have bugs, like hidden nodes
+-- occasionally appearing with output nodes, and weird clustering overall. If you
+-- see some problems in the graph, confirm with the Show instance or something
+-- else that there really is a problem.
 renderGenome :: Genome -> IO ()
 renderGenome g = runGraphvizCanvas Dot graph Xlib
   where dg = DotGraph True True Nothing

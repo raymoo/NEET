@@ -51,6 +51,7 @@ module Neet.Genome ( -- * Genes
                    , distance
                      -- ** Visualization
                    , renderGenome
+                   , printGenome
                    ) where
 
 import Control.Applicative
@@ -429,3 +430,23 @@ renderGenome g = runGraphvizCanvas Dot graph Xlib
         edges = mapMaybe mkEdge . M.elems . connGenes $ g
         mkEdge ConnGene{..} = if connEnabled then Just (connIn, connOut, connWeight) else Nothing
         graph = graphElemsToDot graphParams nodes edges
+
+
+-- | A nicer way to display a 'Genome' than the Show instance.
+printGenome :: Genome -> IO ()
+printGenome g = putStrLn $ unlines stuff
+  where unwrap (NodeId x) = x
+        eText True = ""
+        eText False = "(Disabled)"
+        stuff = [header, nHeader] ++ nInfo ++ [cHeader] ++ cInfo
+        header = "Genetic Info:"
+        nHeader = "Nodes:"
+        nInfo = map mkNInfo . M.toList $ nodeGenes g
+        mkNInfo (NodeId x, NodeGene t _) = show x ++ "(" ++ show t ++ ")"
+        cHeader = "\n\nConnections:"
+        cInfo = map mkCInfo . M.toList $ connGenes g
+        mkCInfo (InnoId i, ConnGene{..}) =
+          "\nInnovation " ++ show i ++
+          "\nConnection from " ++ show (unwrap connIn) ++ " to " ++
+          show (unwrap connOut) ++ " " ++ eText connEnabled ++
+          " with weight " ++ show connWeight

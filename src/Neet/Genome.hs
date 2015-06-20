@@ -134,7 +134,7 @@ mutateWeights Parameters{..} g@Genome{..} = do
         mutOne conn = do
           roll <- getRandomR (0,1)
           let newWeight
-                | roll <= newWeightRate = getRandomR (-1,1)
+                | roll <= newWeightRate = getRandomR (-weightRange,weightRange)
                 | otherwise = do
                     pert <- getRandomR (-pertAmount,pertAmount)
                     return $ connWeight conn + pert
@@ -206,6 +206,9 @@ mutateConn params innos g = do
         pickOne :: MonadRandom m => m (ConnSig, Bool)
         pickOne = uniform allowed
 
+        pickWeight :: MonadRandom m => m Double
+        pickWeight = let r = weightRange params in getRandomR (-r,r)
+
         -- | Randomly chooses one of the available connections and creates a
         -- gene for it
         addRandConn :: (MonadRandom m, MonadFresh InnoId m) =>
@@ -213,7 +216,7 @@ mutateConn params innos g = do
                        m (Map ConnSig InnoId, Map InnoId ConnGene)
         addRandConn innos conns = do
           (ConnSig inNode outNode, recc) <- pickOne
-          w <- getRandomR (-1,1)
+          w <- pickWeight
           let newConn = ConnGene inNode outNode w True recc
           addConn newConn (innos,conns)
 
@@ -267,10 +270,10 @@ mutateNode params innos g = do
               forwardGene = ConnGene newId outId 1 True (connRec gene)
               
           (innos', newConns) <-
-            addConn disabledConn >=> addConn backGene >=> addConn forwardGene $ (innos, conns)
+            addConn backGene >=> addConn forwardGene $ (innos, conns)
 
           return $ (innos', g { nodeGenes = newNodes
-                              , connGenes = newConns
+                              , connGenes = M.insert inno disabledConn newConns
                               , nextNode = newNextNode
                               })
 

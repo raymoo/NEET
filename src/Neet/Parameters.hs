@@ -35,6 +35,7 @@ data Parameters =
   Parameters { mutWeightRate  :: Double -- ^ How often weights are mutated
              , newWeightRate  :: Double -- ^ How often weights are replaced if mutated
              , pertAmount     :: Double -- ^ Max amount of perturbation
+             , weightRange    :: Double -- ^ A new max is between negative this and positive this
              , addConnRate    :: Double -- ^ How often new connections are made
              , addNodeRate    :: Double -- ^ How often new nodes are added
              , largeSize      :: Int    -- ^ The minimum size for a species to be considered large
@@ -63,7 +64,8 @@ defParams :: Parameters
 defParams =
   Parameters { mutWeightRate = 0.8
              , newWeightRate = 0.1
-             , pertAmount = 0.2    -- This value I made up
+             , pertAmount = 0.1    -- This value I made up
+             , weightRange = 10    -- This one too
              , addConnRate = 0.3
              , addNodeRate = 0.03
              , largeSize = 20

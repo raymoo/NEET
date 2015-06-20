@@ -297,7 +297,7 @@ mutate :: (MonadRandom m, MonadFresh InnoId m) => Parameters -> Map ConnSig Inno
           Genome -> m (Map ConnSig InnoId, Genome)
 mutate params innos g = do
   g' <- mutateWeights params g
-  uncurry (mutateNode params) >=> uncurry (mutateConn params) $ (innos, g)
+  uncurry (mutateNode params) >=> uncurry (mutateConn params) $ (innos, g')
 
 
 -- | Super left biased merge -- loners on the right map don't get in

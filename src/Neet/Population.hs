@@ -187,6 +187,7 @@ speciate params specs gens = do
   let zipped = zipWithDefaults mkSpecies (const Nothing) newSpecies specL filled
   return $ M.fromList zipped
   where oneBucket (k, Species _ (rep:_) _ _) = SB k rep []
+        oneBucket _                          = error "(speciate) Empty species!"
         assocs = M.toList specs
         specL = map snd assocs
         buckets = map oneBucket assocs

@@ -70,27 +70,3 @@ orAnswers = [0, 1, 1, 1]
 
 orFit :: Genome -> Double
 orFit = sampleFit boolQuestions orAnswers
-
-
--- | InnoIds don't matter
-xorExample :: Genome
-xorExample = Genome nGenes cGenes (NodeId 9)
-  where nGenes = M.fromList [ (NodeId 1, NodeGene Input 0) -- x
-                            , (NodeId 2, NodeGene Input 0) -- y
-                            , (NodeId 3, NodeGene Input 0) -- bias
-                            , (NodeId 4, NodeGene Output 1)
-                            , (NodeId 5, NodeGene Hidden (1/2)) -- not x
-                            , (NodeId 6, NodeGene Hidden (1/2)) -- not y
-                            , (NodeId 7, NodeGene Hidden (3/4)) -- and (not x) y
-                            , (NodeId 8, NodeGene Hidden (3/4)) -- and x (not y)
-                            ]
-        gPairs = [ (4, [(7, 100), (8, 100), (3, 100)])
-                 , (7, [(5, 100), (2, 100), (3, -100)])
-                 , (8, [(1, 100), (6, 100), (3, -100)])
-                 , (5, [(1, -100), (3, 100)])
-                 , (6, [(2, -100), (3, 100)])
-                 ]
-        mkGene (dest, sources) = map mkOne sources
-          where mkOne (src, w) = ConnGene (NodeId src) (NodeId dest) w True False
-
-        cGenes = M.fromList . zip (map InnoId [1..]) $ gPairs >>= mkGene

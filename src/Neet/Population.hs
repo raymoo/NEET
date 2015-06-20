@@ -159,7 +159,7 @@ data SpecBucket =
 -- | Speciation helper
 shuttleOrgs :: MonadFresh SpecId m =>
                Parameters -> [SpecBucket] -> [Genome] -> m [SpecBucket]
-shuttleOrgs p@Parameters{..} buckets gs = foldM shutOne buckets gs
+shuttleOrgs p@Parameters{..} buckets = foldM shutOne buckets
   where DistParams{..} = distParams
         shutOne :: MonadFresh SpecId m => [SpecBucket] -> Genome -> m [SpecBucket]
         shutOne (SB sId rep gs:bs) g
@@ -171,8 +171,8 @@ shuttleOrgs p@Parameters{..} buckets gs = foldM shutOne buckets gs
 
 
 zipWithDefaults :: (a -> b -> Maybe c) -> (a -> Maybe c) -> (b -> Maybe c) -> [a] -> [b] -> [c]
-zipWithDefaults f da db [] bs = mapMaybe db bs
-zipWithDefaults f da db as [] = mapMaybe da as
+zipWithDefaults _ _  db [] bs = mapMaybe db bs
+zipWithDefaults _ da _  as [] = mapMaybe da as
 zipWithDefaults f da db (a:as) (b:bs) =
   case f a b of
    Just res -> res : zipWithDefaults f da db as bs
@@ -182,7 +182,7 @@ zipWithDefaults f da db (a:as) (b:bs) =
 -- | Speciation function
 speciate :: MonadFresh SpecId m =>
             Parameters -> Map SpecId Species -> [Genome] -> m (Map SpecId Species)
-speciate params specs gs = do
+speciate params specs gens = do
   filled <- fill
   let zipped = zipWithDefaults mkSpecies (const Nothing) newSpecies specL filled
   return $ M.fromList zipped
@@ -190,7 +190,7 @@ speciate params specs gs = do
         assocs = M.toList specs
         specL = map snd assocs
         buckets = map oneBucket assocs
-        fill = shuttleOrgs params buckets gs
+        fill = shuttleOrgs params buckets gens
         mkSpecies (Species _ _ scr imp) (SB sId _ gs)
           | null gs = Nothing
           | otherwise = Just $ (sId, Species (length gs) gs scr imp)
@@ -214,9 +214,6 @@ newPop seed PS{..} = fst $ runPopM generate initCont
               popBOrg = head gens
           popCont <- PopM get
           return Population{..}
-
-
-data BS = Big | Small
 
 
 -- | Advances the population one generation with the fitness function.
@@ -276,7 +273,7 @@ trainOnce f pop = generated
           where initShares = map share masterList
                 share (_,(_, _, adj)) = round $ adj / totalFitness * dubSize
                 remaining = totalSize - foldl' (+) 0 initShares
-                distributeRem n [] = error "Should run out of numbers first"
+                distributeRem _ [] = error "Should run out of numbers first"
                 distributeRem n l@(x:xs)
                   | n > 0 = x + 1 : distributeRem (n - 1) xs
                   | otherwise = l
@@ -292,8 +289,8 @@ trainOnce f pop = generated
                 ps = map (\(_,(s,_,_)) -> chooseParams s) masterList
 
         applyN :: Monad m => Int -> (a -> m a) -> a -> m a
-        applyN 0 f x = return x
-        applyN n f !x = f x >>= applyN (n - 1) f
+        applyN 0 _  x = return x
+        applyN n h !x = h x >>= applyN (n - 1) h
 
         -- | Generate the genomes for a species
         specGens :: (MonadFresh InnoId m, MonadRandom m) =>
@@ -348,8 +345,8 @@ trainN :: Int -> (Genome -> Double) -> Population -> Population
 trainN n f p
   | n <= 0 = p
   | otherwise = applyN n (trainOnce f) p
-  where applyN 0 f !x = x
-        applyN n f !x = applyN (n - 1) f (f x)
+  where applyN 0  _ !x = x
+        applyN n' h !x = applyN (n' - 1) h (h x)
 
 
 -- | Train until the given fitness (first parameter) is reached, or the max number
@@ -358,8 +355,8 @@ trainUntil :: Double -> Int -> (Genome -> Double) -> Population -> (Population, 
 trainUntil goal n f p
   | n <= 0 = (p, 0)
   | otherwise = go n p
-  where go 0 !p = (p, n)
-        go n' !p
-          | reached = (p, n - n')
-          | otherwise = go (n' - 1) (trainOnce f p)
-          where reached = popBScore p >= goal
+  where go 0  !p' = (p', n)
+        go n' !p'
+          | reached = (p', n - n')
+          | otherwise = go (n' - 1) (trainOnce f p')
+          where reached = popBScore p' >= goal

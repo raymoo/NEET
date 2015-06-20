@@ -45,12 +45,13 @@ module Neet.Network (
                     , getOutput
                     ) where
 
-import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Set as S
 
-import qualified Data.Map as M
 import Data.List (foldl')
+
+import qualified Data.IntMap as IM
+import Data.IntMap (IntMap)
 
 import Neet.Genome
 
@@ -63,7 +64,7 @@ modSig d = 1 / (1 + exp (-4.9 * d))
 -- | A single neuron
 data Neuron =
   Neuron { activation  :: Double            -- ^ The current activation
-         , connections :: Map NodeId Double -- ^ The inputs to this Neuron
+         , connections :: IntMap Double -- ^ The inputs to this Neuron
          , yHint       :: Rational          -- ^ Visualization height
          }
   deriving (Show)
@@ -73,7 +74,7 @@ data Neuron =
 data Network =
   Network { netInputs   :: [NodeId] -- ^ Which nodes are inputs
           , netOutputs  :: [NodeId] -- ^ Which nodes are outputs
-          , netState    :: Map NodeId Neuron
+          , netState    :: IntMap Neuron
           , netDepth    :: Int      -- ^ Upper bound on depth
           } 
   deriving (Show)
@@ -81,24 +82,24 @@ data Network =
 
 -- | Takes the previous step's activations and current inputs and gives a
 -- function to update a neuron.
-stepNeuron :: Map NodeId Double -> Neuron -> Neuron
+stepNeuron :: IntMap Double -> Neuron -> Neuron
 stepNeuron acts (Neuron _ conns yh) = Neuron (modSig weightedSum) conns yh
-  where oneFactor nId w = (acts M.! nId) * w
-        weightedSum = M.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns
+  where oneFactor nId w = (acts IM.! nId) * w
+        weightedSum = IM.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns
 
 
 -- | Steps a network one step. Takes the network and the current input, minus
 -- the bias.
 stepNetwork :: Network -> [Double] -> Network
 stepNetwork net@Network{..} ins = net { netState = newNeurons }
-  where pairs = zip netInputs (ins ++ [1])
+  where pairs = zipWith (\x y -> (getNodeId x, y)) netInputs (ins ++ [1])
 
-        acts = M.map activation netState
+        acts = IM.map activation netState
 
         -- | The previous state, except updated to have new inputs
-        modState = foldl' (flip $ uncurry M.insert) acts pairs
+        modState = foldl' (flip $ uncurry IM.insert) acts pairs
 
-        newNeurons = M.map (stepNeuron modState) netState
+        newNeurons = IM.map (stepNeuron modState) netState
 
 
 -- | Steps a network for at least its depth
@@ -109,33 +110,33 @@ snapshot net = go (netDepth net - 1)
 
 
 mkPhenotype :: Genome -> Network
-mkPhenotype Genome{..} = (M.foldl' addConn nodeHusk connGenes) { netInputs = ins
-                                                               , netOutputs = outs
-                                                               , netDepth = dep }
+mkPhenotype Genome{..} = (IM.foldl' addConn nodeHusk connGenes) { netInputs = map NodeId ins
+                                                                , netOutputs = map NodeId outs
+                                                                , netDepth = dep }
   where addNode n@(Network _ _ s _) nId (NodeGene _ yh) =
-          n { netState = M.insert nId (Neuron 0 M.empty yh) s
+          n { netState = IM.insert nId (Neuron 0 IM.empty yh) s
             }
 
-        ins = M.keys . M.filter (\ng -> nodeType ng == Input) $ nodeGenes
-        outs = M.keys . M.filter (\ng -> nodeType ng == Output) $ nodeGenes
+        ins = IM.keys . IM.filter (\ng -> nodeType ng == Input) $ nodeGenes
+        outs = IM.keys . IM.filter (\ng -> nodeType ng == Output) $ nodeGenes
 
         -- | Network without connections added
-        nodeHusk = M.foldlWithKey' addNode (Network [] [] M.empty 0) nodeGenes
+        nodeHusk = IM.foldlWithKey' addNode (Network [] [] IM.empty 0) nodeGenes
 
         depthSet :: Set Rational
-        depthSet = M.foldl' (flip S.insert) S.empty $ M.map Neet.Genome.yHint nodeGenes
+        depthSet = IM.foldl' (flip S.insert) S.empty $ IM.map Neet.Genome.yHint nodeGenes
 
         dep = S.size depthSet
 
-        addConn2Node nId w (Neuron a cs yh) = Neuron a (M.insert nId w cs) yh
+        addConn2Node nId w (Neuron a cs yh) = Neuron a (IM.insert nId w cs) yh
 
         addConn net@Network{ netState = s } ConnGene{..}
           | not connEnabled = net
           | otherwise =
-              let newS = M.adjust (addConn2Node connIn connWeight) connOut s
+              let newS = IM.adjust (addConn2Node (getNodeId connIn) connWeight) (getNodeId connOut) s
               in net { netState = newS }
 
 
 -- | Gets the output of the current state
 getOutput :: Network -> [Double]
-getOutput Network{..} = map (activation . (netState M.!)) netOutputs
+getOutput Network{..} = map (activation . (netState IM.!) . getNodeId) netOutputs

@@ -69,7 +69,7 @@ import Control.Monad.Trans.State
 import Control.Applicative
 import Control.Monad
 
-import Control.Arrow (first, second)
+
 
 import Data.Function
 

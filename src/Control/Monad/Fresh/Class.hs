@@ -33,7 +33,7 @@ Portability : portable
 module Control.Monad.Fresh.Class (MonadFresh(..)) where
 
 
-import Control.Applicative
+
 import Control.Monad
 
 

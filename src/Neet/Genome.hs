@@ -59,7 +59,7 @@ import Control.Monad.Random
 import Data.Map.Strict (Map)
 import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
-import Data.Set (Set)
+
 import qualified Data.Set as S
 
 import Data.Maybe

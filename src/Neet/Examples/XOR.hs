@@ -29,7 +29,7 @@ Portability : ghc
 
 module Neet.Examples.XOR (xorFit, andFit, orFit) where
 
-import Neet.Population
+
 import Neet.Genome
 import Neet.Network
 

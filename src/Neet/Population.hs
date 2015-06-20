@@ -45,6 +45,7 @@ module Neet.Population (
                          -- * Training
                        , trainOnce
                        , trainN
+                       , trainUntil
                        ) where
 
 import Neet.Species
@@ -349,3 +350,16 @@ trainN n f p
   | otherwise = applyN n (trainOnce f) p
   where applyN 0 f !x = x
         applyN n f !x = applyN (n - 1) f (f x)
+
+
+-- | Train until the given fitness (first parameter) is reached, or the max number
+-- of generations (second parameter) is reached. Also gives generations needed.
+trainUntil :: Double -> Int -> (Genome -> Double) -> Population -> (Population, Int)
+trainUntil goal n f p
+  | n <= 0 = (p, 0)
+  | otherwise = go n p
+  where go 0 !p = (p, n)
+        go n' !p
+          | reached = (p, n - n')
+          | otherwise = go (n' - 1) (trainOnce f p)
+          where reached = popBScore p >= goal

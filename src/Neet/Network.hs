@@ -40,11 +40,15 @@ module Neet.Network (
                       -- ** Updates
                     , stepNeuron
                     , stepNetwork
+                    , snapshot
                       -- ** Output
                     , getOutput
                     ) where
 
 import Data.Map (Map)
+import Data.Set (Set)
+import qualified Data.Set as S
+
 import qualified Data.Map as M
 import Data.List (foldl')
 
@@ -70,6 +74,7 @@ data Network =
   Network { netInputs   :: [NodeId] -- ^ Which nodes are inputs
           , netOutputs  :: [NodeId] -- ^ Which nodes are outputs
           , netState    :: Map NodeId Neuron
+          , netDepth    :: Int      -- ^ Upper bound on depth
           } 
   deriving (Show)
 
@@ -96,9 +101,18 @@ stepNetwork net@Network{..} ins = net { netState = newNeurons }
         newNeurons = M.map (stepNeuron modState) netState
 
 
+-- | Steps a network for at least its depth
+snapshot :: Network -> [Double] -> Network
+snapshot net ds = go (netDepth net - 1) ds
+  where go 0 ds = net
+        go n ds = stepNetwork (go (n - 1) ds) ds
+
+
 mkPhenotype :: Genome -> Network
-mkPhenotype Genome{..} = (M.foldl' addConn nodeHusk connGenes) { netInputs = ins, netOutputs = outs }
-  where addNode n@(Network _ _ s) nId (NodeGene _ yh) =
+mkPhenotype Genome{..} = (M.foldl' addConn nodeHusk connGenes) { netInputs = ins
+                                                               , netOutputs = outs
+                                                               , netDepth = dep }
+  where addNode n@(Network _ _ s _) nId (NodeGene _ yh) =
           n { netState = M.insert nId (Neuron 0 M.empty yh) s
             }
 
@@ -106,7 +120,12 @@ mkPhenotype Genome{..} = (M.foldl' addConn nodeHusk connGenes) { netInputs = ins
         outs = M.keys . M.filter (\ng -> nodeType ng == Output) $ nodeGenes
 
         -- | Network without connections added
-        nodeHusk = M.foldlWithKey' addNode (Network [] [] M.empty) nodeGenes
+        nodeHusk = M.foldlWithKey' addNode (Network [] [] M.empty 0) nodeGenes
+
+        depthSet :: Set Rational
+        depthSet = M.foldl' (flip S.insert) S.empty $ M.map Neet.Genome.yHint nodeGenes
+
+        dep = S.size depthSet
 
         addConn2Node nId w (Neuron a cs yh) = Neuron a (M.insert nId w cs) yh
 

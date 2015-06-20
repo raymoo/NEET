@@ -134,11 +134,11 @@ fullConn Parameters{..} iSize oSize = do
 
 -- | Mutate the weights - perturb or make entirely new weights
 mutateWeights :: MonadRandom m => Parameters -> Genome -> m Genome
-mutateWeights Parameters{..} g@Genome{..} = do
+mutateWeights Parameters{..} gen@Genome{..} = do
   roll <- getRandomR (0,1)
   if roll > mutWeightRate
-    then return g
-    else setConns g `liftM` T.mapM mutOne connGenes
+    then return gen
+    else setConns gen `liftM` T.mapM mutOne connGenes
   where setConns g cs = g { connGenes = cs }
         mutOne conn = do
           roll <- getRandomR (0,1)
@@ -182,7 +182,7 @@ mutateConn params innos g = do
     then return (innos, g)
     else case allowed of
           [] -> return (innos, g)
-          xs -> do
+          _  -> do
              (innos', conns') <- addRandConn innos (connGenes g)
              return $ (innos', g { connGenes = conns' })
              
@@ -223,11 +223,11 @@ mutateConn params innos g = do
         addRandConn :: (MonadRandom m, MonadFresh InnoId m) =>
                        Map ConnSig InnoId -> Map InnoId ConnGene ->
                        m (Map ConnSig InnoId, Map InnoId ConnGene)
-        addRandConn innos conns = do
+        addRandConn innos' conns = do
           (ConnSig inNode outNode, recc) <- pickOne
           w <- pickWeight
           let newConn = ConnGene inNode outNode w True recc
-          addConn newConn (innos,conns)
+          addConn newConn (innos',conns)
 
 
 -- | Mutation of additional node.
@@ -357,7 +357,7 @@ differences = M.mergeWithKey (\_ c1 c2 -> Just $ oneDiff c1 c2) (const M.empty) 
 -- | Genetic distance between two genomes
 distance :: Parameters -> Genome -> Genome -> Double
 distance params g1 g2 = c1 * exFactor + c2 * disFactor + c3 * weightFactor
-  where DistParams c1 c2 c3 dt = distParams params
+  where DistParams c1 c2 c3 _ = distParams params
 
         conns1 = connGenes g1
         conns2 = connGenes g2
@@ -425,8 +425,7 @@ graphParams =
 -- else that there really is a problem.
 renderGenome :: Genome -> IO ()
 renderGenome g = runGraphvizCanvas Dot graph Xlib
-  where dg = DotGraph True True Nothing
-        nodes = M.toList . nodeGenes $ g
+  where nodes = M.toList . nodeGenes $ g
         edges = mapMaybe mkEdge . M.elems . connGenes $ g
         mkEdge ConnGene{..} = if connEnabled then Just (connIn, connOut, connWeight) else Nothing
         graph = graphElemsToDot graphParams nodes edges

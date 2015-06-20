@@ -314,7 +314,9 @@ superLeft comb mk = IM.mergeWithKey (\_ a b -> Just $ comb a b) (IM.map mk) (con
 
 -- | Choose between two alternatives with coin chance
 flipCoin :: MonadRandom m => a -> a -> m a
-flipCoin a1 a2 = uniform [a1, a2]
+flipCoin a1 a2 = do
+  roll <- (`mod` (2 :: Int)) `liftM` getRandom
+  return $ if roll == 0 then a1 else a2
 
 
 -- | Crossover on just the connections. Put the fittest map first.

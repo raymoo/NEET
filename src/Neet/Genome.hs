@@ -399,7 +399,7 @@ distance params g1 g2 = c1 * exFactor + c2 * disFactor + c3 * weightFactor
         -- | Excess and Disjoint
         exJoints = (ids1 `IS.difference` ids2) `IS.union` (ids2 `IS.difference` ids1)
 
-        (excess, disjoint) = IS.partition (<= edge) exJoints
+        (excess, disjoint) = IS.partition (>= edge) exJoints
 
         exFactor = fromIntegral $ IS.size excess
 

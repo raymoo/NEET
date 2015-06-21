@@ -31,6 +31,8 @@ Portability : ghc
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DefaultSignatures #-}
 
 module Neet.Genome ( -- * Genes
                      NodeId(..)
@@ -76,21 +78,28 @@ import Neet.Parameters
 import Data.GraphViz
 import Data.GraphViz.Attributes.Complete
 
+import GHC.Generics (Generic)
+import Data.Serialize (Serialize)
+
 -- | The IDs node genes use to refer to nodes.
 newtype NodeId = NodeId { getNodeId :: Int }
-               deriving (Show, Eq, Ord, PrintDot)
+               deriving (Show, Eq, Ord, PrintDot, Serialize)
 
 
 -- | Types of nodes
 data NodeType = Input | Hidden | Output
-              deriving (Show, Eq)
+              deriving (Show, Eq, Generic)
+
+instance Serialize NodeType
 
 
 -- | Node genes
 data NodeGene = NodeGene { nodeType :: NodeType
                          , yHint :: Rational -- ^ A hint for recurrency
                          }
-              deriving (Show)
+              deriving (Show, Generic)
+
+instance Serialize NodeGene
 
 
 -- | Connection genes
@@ -100,7 +109,9 @@ data ConnGene = ConnGene { connIn :: NodeId
                          , connEnabled :: Bool
                          , connRec :: Bool -- ^ A hint for recurrency
                          }
-              deriving (Show)
+              deriving (Show, Generic)
+
+instance Serialize ConnGene
 
 
 -- | Innovation IDs
@@ -115,7 +126,10 @@ data Genome =
          , connGenes :: IntMap ConnGene
          , nextNode :: NodeId
          }
-  deriving (Show)
+  deriving (Show, Generic)
+
+
+instance Serialize Genome
 
 
 -- | Takes the number of inputs, the number of outputs, and gives a genome with

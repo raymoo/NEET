@@ -37,16 +37,22 @@ module Neet.Species (
                     , TestResult(..)
                     , runFitTest
                     , updateSpec
+                      -- * Statistics
+                    , maxDist
                       -- * Debugging
                     , validateSpecies
                     ) where
 
 
 import Neet.Genome
+import Neet.Parameters
+
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.List (foldl')
 import Data.Maybe
+
+import Control.Applicative ((<$>), (<*>))
 
 
 -- | A NEAT Species.
@@ -127,3 +133,7 @@ validateSpecies Species{..} = case orgErrs ++ goodSize of
           | specSize == length specOrgs = []
           | otherwise = ["Species size differs from number of organisms"]
         
+
+-- | Gets the max distance between two genomes in a species
+maxDist :: Parameters -> Species -> Double
+maxDist ps Species{..} = maximum . map (uncurry (distance ps)) $ (,) <$> specOrgs <*> specOrgs

@@ -40,30 +40,34 @@ boolQuestions = [ [0, 0]
                 , [1, 1]
                 ]
 
-xorAnswers :: [Double]
-xorAnswers = [0, 1, 1, 0]
+xorAnswers :: [Bool]
+xorAnswers = [False, True, True, False]
 
-sampleFit :: [[Double]] -> [Double] -> Genome -> Double
-sampleFit questions answers g = max 0 $ (fromIntegral (length answers) - sumDiffs)**2
-  where net = mkPhenotype g
-        try samp = head . getOutput $ snapshot net samp
-        responses = map try questions
-        sumDiffs = sum $ zipWith (\x y -> abs (x - y)) responses answers
+sampleFit :: [[Double]] -> [Bool] -> GenScorer [Double]
+sampleFit questions answers = GS intermed ff criteria
+  where intermed g = map try questions
+          where try samp = head . getOutput $ snapshot net samp
+                net = mkPhenotype g
+        ff ds = (fromIntegral (length answers) - sumDiffs)**2
+          where sumDiffs = sum $ zipWith (\x y -> abs (x - y)) ds binarized
+        binarized = map (\b -> if b then 1 else 0) answers
+        bounds = map (\b -> if b then (>0.5) else (<0.5)) answers
+        criteria ds = and $ zipWith id bounds ds
 
-xorFit :: Genome -> Double
+xorFit :: GenScorer [Double]
 xorFit = sampleFit boolQuestions xorAnswers
 
-andAnswers :: [Double]
-andAnswers = [0, 0, 0, 1]
+andAnswers :: [Bool]
+andAnswers = [False, False, False, True]
 
 
-andFit :: Genome -> Double
+andFit :: GenScorer [Double]
 andFit = sampleFit boolQuestions andAnswers
 
 
-orAnswers :: [Double]
-orAnswers = [0, 1, 1, 1]
+orAnswers :: [Bool]
+orAnswers = [False, True, True, True]
 
 
-orFit :: Genome -> Double
+orFit :: GenScorer [Double]
 orFit = sampleFit boolQuestions orAnswers

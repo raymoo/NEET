@@ -46,6 +46,8 @@ module Neet.Population (
                        , trainOnce
                        , trainN
                        , trainUntil
+                         -- * Statistics
+                       , speciesCount
                        ) where
 
 import Neet.Species
@@ -376,3 +378,8 @@ trainUntil n f p
         go n' !p' = case trainOnce f p' of
                      (p'', Nothing) -> go (n' - 1) p''
                      (p'', Just g) -> (p'', Just (g, n - n'))
+
+
+-- | Gets the number of species
+speciesCount :: Population -> Int
+speciesCount Population{..} = M.size popSpecs

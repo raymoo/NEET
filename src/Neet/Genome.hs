@@ -51,6 +51,8 @@ module Neet.Genome ( -- * Genes
                    , breed
                      -- ** Distance
                    , distance
+                     -- ** Fitness
+                   , GenScorer(..)
                      -- ** Visualization
                    , renderGenome
                    , printGenome
@@ -473,3 +475,12 @@ printGenome g = putStrLn $ unlines stuff
           "\nConnection from " ++ show (unwrap connIn) ++ " to " ++
           show (unwrap connOut) ++ " " ++ eText connEnabled ++
           " with weight " ++ show connWeight
+
+
+-- | Parameters for search. The type parameter determines the intermediate
+-- type for determining if a solution is valid.
+data GenScorer score =
+  GS { gScorer         :: Genome -> score -- ^ Scoring function
+     , fitnessFunction :: score -> Double -- ^ Convert the score to a fitness
+     , winCriteria     :: score -> Bool   -- ^ Determines if a result is win
+     } 

@@ -274,11 +274,12 @@ trainOnce f pop = generated
         candSpecs :: MonadRandom m => [(Parameters, Int, m Genome)]
         candSpecs = zip3 ps realShares pickers
           where initShares = map share masterList
-                share (_,(_, _, adj)) = round $ adj / totalFitness * dubSize
+                share (_,(_, _, adj)) = floor $ adj / totalFitness * dubSize
                 remaining = totalSize - foldl' (+) 0 initShares
                 distributeRem _ [] = error "Should run out of numbers first"
                 distributeRem n l@(x:xs)
                   | n > 0 = x + 1 : distributeRem (n - 1) xs
+                  | n < 0 = error "Remainder should be positive"
                   | otherwise = l
                 realShares = distributeRem remaining initShares
                 pickers :: MonadRandom m => [m Genome]

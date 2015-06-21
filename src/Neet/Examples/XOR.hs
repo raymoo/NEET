@@ -45,7 +45,7 @@ xorAnswers :: [Double]
 xorAnswers = [0, 1, 1, 0]
 
 sampleFit :: [[Double]] -> [Double] -> Genome -> Double
-sampleFit questions answers g = (fromIntegral (length answers) - sumDiffs)**2
+sampleFit questions answers g = max 0 $ (fromIntegral (length answers) - sumDiffs)**2
   where net = mkPhenotype g
         try samp = head . getOutput $ snapshot net samp
         responses = map try questions

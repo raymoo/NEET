@@ -88,6 +88,7 @@ data Population =
              , nextSpec  :: !SpecId             -- ^ The next species ID
              , popParams  :: Parameters        -- ^ Parameters for large species
              , popParamsS :: Parameters        -- ^ Parameters for small species
+             , popGen    :: Int                -- ^ Current generation
              }
   deriving (Show)
 
@@ -209,6 +210,7 @@ newPop seed PS{..} = fst $ runPopM generate initCont
         popParams = psParams
         popParamsS = psParamsS
         generateGens = replicateM psSize (fullConn psParams psInputs psOutputs)
+        popGen = 1
         generate = do
           gens <- generateGens
           let (popSpecs, nextSpec) = runSpecM (speciate psParams M.empty gens) (SpecId 1)
@@ -338,6 +340,7 @@ trainOnce f pop = generated
                      , popBSpec = bSpec
                      , popCont = cont'
                      , nextSpec = nextSpec'
+                     , popGen = popGen pop + 1
                      } 
 
 

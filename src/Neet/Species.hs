@@ -34,6 +34,7 @@ module Neet.Species (
                       -- * Construction
                     , newSpec
                       -- * Update/Fitness
+                    , TestResult(..)
                     , runFitTest
                     , updateSpec
                     ) where
@@ -43,6 +44,7 @@ import Neet.Genome
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.List (foldl')
+
 
 -- | A NEAT Species.
 data Species =
@@ -70,13 +72,31 @@ newSpec :: Genome -> [Genome] -> Species
 newSpec gen gens = Species (length gens + 1) (gen:gens) (SpecScore 0 gen) 0
 
 
+-- | A result of evaluating a species
+data TestResult =
+  TR { trScores :: MultiMap Double Genome -- ^ The score of each organism
+     , trSS     :: SpecScore              -- ^ Result 'SpecScore'
+     , trAdj    :: Double                 -- ^ Total adjusted fitness
+     , trSol    :: Maybe Genome           -- ^ Possible Solution
+     }
+
+findMay :: (a -> Bool) -> [a] -> Maybe a
+findMay _ [] = Nothing
+findMay p (a:as)
+  | p a = Just a
+  | otherwise = findMay p as
+
+
 -- | Output the result of testing fitness. Last value is the total adjusted fitness
-runFitTest :: (Genome -> Double) -> Species -> (MultiMap Double Genome, SpecScore, Double)
-runFitTest f Species{..} = (mmap, ss, totF / dubSize)
+runFitTest :: GenScorer a -> Species -> TestResult
+runFitTest GS{..} Species{..} = TR mmap ss (totF / dubSize) msolution
   where dubSize = fromIntegral specSize :: Double
-        (mmap, totF) = foldl' accumOne (MM.empty, 0) $ map calcOne specOrgs
-        calcOne g = let fitness = f g in (fitness, g)
-        accumOne (accM, accA) (fit, g) = (MM.insert fit g accM, accA + fit)
+        (mmap, totF) = foldl' accumOne (MM.empty, 0) resses
+        calcOne g = let score = gScorer g in (score, g)
+        resses = map calcOne specOrgs
+        msolution = fmap snd . findMay (\pair -> winCriteria (fst pair)) $ resses
+        accumOne (accM, accA) (score, g) = (MM.insert fit g accM, accA + fit)
+          where fit = fitnessFunction score
         ss = case MM.findMaxWithValues mmap of
               Nothing -> error "(runFitTest) folding fitness resulted in empty map!"
               Just (scr, (x:_)) -> SpecScore scr x

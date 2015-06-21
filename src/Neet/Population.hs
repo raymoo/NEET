@@ -219,9 +219,10 @@ newPop seed PS{..} = fst $ runPopM generate initCont
           return Population{..}
 
 
--- | Advances the population one generation with the fitness function.
-trainOnce :: (Genome -> Double) -> Population -> Population
-trainOnce f pop = generated
+-- | Advances the population one generation with the fitness function, possibly
+-- giving a solution.
+trainOnce :: GenScorer a -> Population -> (Population, Maybe Genome)
+trainOnce scorer pop = (generated, msolution)
   where params = popParams pop
         paramsS = popParamsS pop
 
@@ -232,16 +233,21 @@ trainOnce f pop = generated
         initSpecs = popSpecs pop
 
         -- | Map to fitness data from runFitTest
-        fits = M.map (\sp -> (sp, runFitTest f sp)) initSpecs
+        fits = M.map (\sp -> (sp, runFitTest scorer sp)) initSpecs
+
+        msolution = go $ map (trSol . snd) $ M.elems fits
+          where go [] = Nothing
+                go (Just x:_) = Just x
+                go (_:xs) = go xs
 
         -- | Whether a species deserves to live (did it improve recently?)
-        eugenics :: SpecId -> (Species, (MultiMap Double Genome, SpecScore, Double)) ->
+        eugenics :: SpecId -> (Species, TestResult) ->
                     Maybe (Species, MultiMap Double Genome, Double)
-        eugenics sId (sp, (fitmap, ss, adj))
+        eugenics sId (sp, TR{..})
           | maybe False (lastImprovement nSpec >=) (dropTime params)
             && sId /= popBSpec pop = Nothing
-          | otherwise = Just (nSpec, fitmap, adj)
-          where nSpec = updateSpec ss sp
+          | otherwise = Just (nSpec, trScores, trAdj)
+          where nSpec = updateSpec trSS sp
 
         -- | Species that have improved recently enough.
         masterRace :: Map SpecId (Species, MultiMap Double Genome, Double)
@@ -346,22 +352,22 @@ trainOnce f pop = generated
 
 
 -- | Train the population n times. Values less than 1 return the original.
-trainN :: Int -> (Genome -> Double) -> Population -> Population
-trainN n f p
+trainN :: Int -> GenScorer a -> Population -> Population
+trainN n scorer p
   | n <= 0 = p
-  | otherwise = applyN n (trainOnce f) p
+  | otherwise = applyN n (trainOnce scorer) p
   where applyN 0  _ !x = x
-        applyN n' h !x = applyN (n' - 1) h (h x)
+        applyN n' h !x = applyN (n' - 1) h (fst $ h x)
 
 
--- | Train until the given fitness (first parameter) is reached, or the max number
--- of generations (second parameter) is reached. Also gives generations needed.
-trainUntil :: Double -> Int -> (Genome -> Double) -> Population -> (Population, Int)
-trainUntil goal n f p
-  | n <= 0 = (p, 0)
+-- | Train until the provided goal is reached, or the max number
+-- of generations (first parameter) is reached. Possibly also returns a solution
+-- and the number of generations elapsed.
+trainUntil :: Int -> GenScorer a -> Population -> (Population, Maybe (Genome, Int))
+trainUntil n f p
+  | n <= 0 = (p, Nothing)
   | otherwise = go n p
-  where go 0  !p' = (p', n)
-        go n' !p'
-          | reached = (p', n - n')
-          | otherwise = go (n' - 1) (trainOnce f p')
-          where reached = popBScore p' >= goal
+  where go 0  !p' = (p', Nothing)
+        go n' !p' = case trainOnce f p' of
+                     (p'', Nothing) -> go (n' - 1) p''
+                     (p'', Just g) -> (p'', Just (g, n - n'))

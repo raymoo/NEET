@@ -64,8 +64,8 @@ defParams :: Parameters
 defParams =
   Parameters { mutWeightRate = 0.8
              , newWeightRate = 0.1
-             , pertAmount = 0.1    -- This value I made up
-             , weightRange = 10    -- This one too
+             , pertAmount = 2.5
+             , weightRange = 2.5
              , addConnRate = 0.3
              , addNodeRate = 0.03
              , largeSize = 20

@@ -65,7 +65,7 @@ modSig d = 1 / (1 + exp (-4.9 * d))
 data Neuron =
   Neuron { activation  :: Double            -- ^ The current activation
          , connections :: IntMap Double -- ^ The inputs to this Neuron
-         , yHint       :: Rational          -- ^ Visualization height
+         , yHeight     :: Rational          -- ^ Visualization height
          }
   deriving (Show)
            

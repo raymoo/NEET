@@ -30,8 +30,7 @@ Portability : ghc
 module Neet.Examples.XOR (xorFit, andFit, orFit) where
 
 
-import Neet.Genome
-import Neet.Network
+import Neet
 
 
 boolQuestions :: [[Double]]

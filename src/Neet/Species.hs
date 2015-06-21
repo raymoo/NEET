@@ -37,6 +37,8 @@ module Neet.Species (
                     , TestResult(..)
                     , runFitTest
                     , updateSpec
+                      -- * Debugging
+                    , validateSpecies
                     ) where
 
 
@@ -44,6 +46,7 @@ import Neet.Genome
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.List (foldl')
+import Data.Maybe
 
 
 -- | A NEAT Species.
@@ -112,3 +115,15 @@ updateSpec ss spec = spec { specScore = newScr
         (newScr, li)
           | bestScore ss > bestScore oldScr = (ss, 0)
           | otherwise                       = (oldScr, lastImprovement spec + 1)
+
+
+-- | Validates a species, possibly returning errors
+validateSpecies :: Species -> Maybe [String]
+validateSpecies Species{..} = case orgErrs ++ goodSize of
+                               [] -> Nothing
+                               xs -> Just xs
+  where orgErrs = concat $ mapMaybe validateGenome specOrgs
+        goodSize
+          | specSize == length specOrgs = []
+          | otherwise = ["Species size differs from number of organisms"]
+        

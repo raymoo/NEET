@@ -48,6 +48,8 @@ module Neet.Population (
                        , trainUntil
                          -- * Statistics
                        , speciesCount
+                         -- * Debugging
+                       , validatePopulation
                        ) where
 
 import Neet.Species
@@ -378,3 +380,19 @@ trainUntil n f p
 -- | Gets the number of species
 speciesCount :: Population -> Int
 speciesCount Population{..} = M.size popSpecs
+
+
+-- | Validate a population, possibly returning a list of errors
+validatePopulation :: Population -> Maybe [String]
+validatePopulation Population{..} = case errRes of
+                                     [] -> Nothing
+                                     xs -> Just xs
+  where totalSSize = M.foldl' (\acc x -> specSize x + acc) 0 popSpecs
+        goodSize
+          | totalSSize == popSize = []
+          | otherwise = ["Population size differs from actual size"]
+        goodSId
+          | (not . M.null) popSpecs && fst (M.findMax popSpecs) < nextSpec = []
+          | otherwise = ["SpecId lower than extant species"]
+        specErrs = concat . M.elems $ M.mapMaybe validateSpecies popSpecs
+        errRes = goodSId  ++ goodSize ++ specErrs

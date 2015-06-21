@@ -56,6 +56,8 @@ module Neet.Genome ( -- * Genes
                      -- ** Visualization
                    , renderGenome
                    , printGenome
+                     -- ** Debugging
+                   , validateGenome
                    ) where
 
 import Control.Applicative
@@ -68,6 +70,8 @@ import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 
 import qualified Data.IntSet as IS
+
+import qualified Data.Set as S
 
 import qualified Data.IntMap as IM
 import Data.IntMap (IntMap)
@@ -484,3 +488,30 @@ data GenScorer score =
      , fitnessFunction :: score -> Double -- ^ Convert the score to a fitness
      , winCriteria     :: score -> Bool   -- ^ Determines if a result is win
      } 
+
+
+uniq :: Ord a => [a] -> Bool
+uniq = go S.empty
+  where go _   [] = True
+        go set (x:xs) = not (S.member x set) && go (S.insert x set) xs
+
+
+-- | Validates a 'Genome', returning Nothing on success.
+validateGenome :: Genome -> Maybe [String]
+validateGenome Genome{..} = case errRes of
+                             [] -> Nothing
+                             xs -> Just xs
+  where nodeOk = case IM.maxViewWithKey nodeGenes of
+                  Nothing -> Nothing
+                  Just ((nid,_), _)
+                    | nid < getNodeId nextNode -> Nothing
+                    | otherwise -> Just "NodeId too low"
+        connOk (ConnSig (NodeId n1) (NodeId n2))
+          | IM.member n1 nodeGenes && IM.member n2 nodeGenes = Nothing
+          | otherwise = Just "Connection gene between nonexistent nodes"
+        connsOk = join . listToMaybe $ map connOk sigList
+        sigList = map toConnSig . IM.elems $ connGenes
+        nonDup
+          | uniq sigList = Nothing
+          | otherwise = Just "Non unique connection signatures"
+        errRes = catMaybes [nodeOk, connsOk, nonDup]

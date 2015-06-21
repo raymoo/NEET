@@ -298,8 +298,9 @@ trainOnce f pop = generated
 
         -- | Generate the genomes for a species
         specGens :: (MonadFresh InnoId m, MonadRandom m) =>
-                    (Parameters, Int, m Genome) -> m [Genome]
-        specGens (p, n, gen) = liftM snd $ applyN n genOne (M.empty, [])
+                    Map ConnSig InnoId -> (Parameters, Int, m Genome) ->
+                    m (Map ConnSig InnoId, [Genome])
+        specGens inns (p, n, gen) = applyN n genOne (inns, [])
           where genOne (innos, gs) = do
                   roll <- getRandomR (0,1)
                   if roll <= noCrossover p
@@ -314,7 +315,11 @@ trainOnce f pop = generated
                     return (innos', g:gs)
 
         allGens :: (MonadRandom m, MonadFresh InnoId m) => m [Genome]
-        allGens = liftM concat $ mapM specGens candSpecs
+        allGens = liftM (concat . snd) $ foldM ag' (M.empty, []) candSpecs
+          where ag' (innos, cands) cand = do
+                  (innos', specGen) <- specGens innos cand
+                  return $ (innos', specGen:cands)
+                  
 
         genNewSpecies :: (MonadRandom m, MonadFresh InnoId m) => m (Map SpecId Species, SpecId)
         genNewSpecies = do

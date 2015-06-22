@@ -281,7 +281,7 @@ trainOnce scorer pop = (generated, msolution)
         dubSize = fromIntegral totalSize
 
         -- | Distribution of species.
-        candSpecs :: MonadRandom m => [(Parameters, Int, m Genome)]
+        candSpecs :: MonadRandom m => [(Parameters, Int, m (Double,Genome))]
         candSpecs = zip3 ps realShares pickers
           where initShares = map share masterList
                 share (_,(_, _, adj)) = floor $ adj / totalFitness * dubSize
@@ -292,14 +292,14 @@ trainOnce scorer pop = (generated, msolution)
                   | n < 0 = error "Remainder should be positive"
                   | otherwise = l
                 realShares = distributeRem remaining initShares
-                pickers :: MonadRandom m => [m Genome]
+                pickers :: MonadRandom m => [m (Double, Genome)]
                 pickers = map picker masterList
                   where picker (_,(s, mmap, _)) =
                           let numToTake = specSize s `div` 5 + 1
                               desc = M.toDescList $ MM.toMap mmap
                               toPairs (k, vs) = map (\v -> (k,v)) vs
                               culled = take numToTake $ desc >>= toPairs
-                          in fromList . map (\(d,g) -> (g, toRational d)) $ culled
+                          in uniform culled
                 ps = map (\(_,(s,_,_)) -> chooseParams s) masterList
 
         applyN :: Monad m => Int -> (a -> m a) -> a -> m a
@@ -308,19 +308,21 @@ trainOnce scorer pop = (generated, msolution)
 
         -- | Generate the genomes for a species
         specGens :: (MonadFresh InnoId m, MonadRandom m) =>
-                    (Parameters, Int, m Genome) -> m [Genome]
+                    (Parameters, Int, m (Double, Genome)) -> m [Genome]
         specGens (p, n, gen) = liftM snd $ applyN n genOne (M.empty, [])
           where genOne (innos, gs) = do
                   roll <- getRandomR (0,1)
                   if roll <= noCrossover p
                     then do
-                    parent <- gen
+                    (_,parent) <- gen
                     (innos', g) <- mutate p innos parent
                     return (innos', g:gs)
                     else do
-                    mom <- gen
-                    dad <- gen
-                    (innos', g) <- breed p innos mom dad
+                    (fit1, mom) <- gen
+                    (fit2, dad) <- gen
+                    (innos', g) <- if fit1 > fit2
+                                   then breed p innos mom dad
+                                   else breed p innos dad mom
                     return (innos', g:gs)
 
         allGens :: (MonadRandom m, MonadFresh InnoId m) => m [Genome]

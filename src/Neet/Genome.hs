@@ -87,6 +87,8 @@ import Data.GraphViz.Attributes.Complete
 import GHC.Generics (Generic)
 import Data.Serialize (Serialize)
 
+import Text.Printf
+
 -- | The IDs node genes use to refer to nodes.
 newtype NodeId = NodeId { getNodeId :: Int }
                deriving (Show, Eq, Ord, PrintDot, Serialize)
@@ -431,7 +433,7 @@ graphParams =
          , clusterID = iderizer
          , fmtCluster = clusterizer
          , fmtNode = const []
-         , fmtEdge = \(_,_,w) -> [ toLabel $ fix2 w ]
+         , fmtEdge = \(_,_,w) -> [ toLabel $ (printf "%.2f" w :: String) ]
          }
   where categorizer (nId, ng) = C (yHint ng) (N (nId, yHint ng))
         iderizer 0 = Str "Input Layer"
@@ -452,7 +454,6 @@ graphParams =
         clusterizer _ = [ GraphAttrs [ whiteAttr ]
                         , NodeAttrs [ solidAttr, greenAttr, circAttr ]
                         ]
-        fix2 x = (fromInteger $ round $ x * (100)) / (10^^(2 :: Int)) :: Double
 
 
 -- | This graph produced is ugly and janky and will have bugs, like hidden nodes

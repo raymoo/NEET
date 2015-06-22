@@ -35,6 +35,7 @@ Portability : ghc
 {-# LANGUAGE BangPatterns #-}
 module Neet.Population (
                          Population(..)
+                       , SpecId(..)
                          -- * PopM
                        , PopM
                        , PopContext

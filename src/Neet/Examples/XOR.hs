@@ -27,10 +27,17 @@ Stability   : experimental
 Portability : ghc
 -}
 
-module Neet.Examples.XOR (xorFit, andFit, orFit) where
+module Neet.Examples.XOR (xorFit, andFit, orFit, xorExperiment) where
 
 
 import Neet
+import Neet.Species
+
+import qualified Data.Map.Strict as M
+
+import System.Random
+
+import Data.List (intercalate)
 
 
 boolQuestions :: [[Double]]
@@ -71,3 +78,46 @@ orAnswers = [False, True, True, True]
 
 orFit :: GenScorer [Double]
 orFit = sampleFit boolQuestions orAnswers
+
+
+-- | Automated XOR experiment
+xorExperiment :: IO ()
+xorExperiment = do
+  putStrLn $ "XOR Input list is: " ++ show boolQuestions
+  putStrLn "Press Enter to start learning"
+  _ <- getLine
+  putStrLn "Running XOR experiment with 150 population and default parameters"
+  seed <- randomIO
+  let pop = newPop seed (PS 150 2 1 defParams smallParams)
+  (pop', sol) <- xorLoop pop
+  printInfo pop'
+  putStrLn $ "Solution found in generation " ++ show (popGen pop')
+  let score = gScorer xorFit sol
+  putStrLn $ "\nOutputs to XOR inputs are: " ++ show score
+  putStrLn $ "Fitness (Out of 16): " ++ show (fitnessFunction xorFit score)
+  putStrLn "\nPress Enter to view network"
+  _ <- getLine
+  renderGenome sol
+
+
+mkSpecInfo :: Population -> String
+mkSpecInfo pop = intercalate ", " infos
+  where infos = map (\((SpecId k), sp) -> "S" ++ show k ++ " P" ++ show (specSize sp)) ass
+        ass = M.toList $ popSpecs pop
+
+
+xorLoop :: Population -> IO (Population, Genome)
+xorLoop pop = do
+  printInfo pop
+  let (pop', mg) = trainOnce xorFit pop
+  case mg of
+   Nothing -> xorLoop pop'
+   Just g -> return (pop',g)
+     
+
+printInfo :: Population -> IO ()
+printInfo pop = do
+  putStrLn $ "Generation " ++ show (popGen pop)
+  putStrLn $ "Species: " ++ mkSpecInfo pop
+  putStrLn $ "High Score: " ++ show (popBScore pop)
+  putStrLn ""

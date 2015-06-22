@@ -42,19 +42,21 @@ module Neet.Network (
                     , stepNetwork
                     , snapshot
                       -- ** Output
+                    , pushThrough
                     , getOutput
                     ) where
 
 import Data.Set (Set)
 import qualified Data.Set as S
 
-import Data.List (foldl')
+import Data.List (sortBy, foldl')
 
 import qualified Data.IntMap as IM
 import Data.IntMap (IntMap)
 
 import Neet.Genome
 
+import Data.Function
 
 -- | Modified sigmoid function from the original NEAT paper
 modSig :: Double -> Double
@@ -63,9 +65,10 @@ modSig d = 1 / (1 + exp (-4.9 * d))
 
 -- | A single neuron
 data Neuron =
-  Neuron { activation  :: Double            -- ^ The current activation
+  Neuron { activation  :: Double        -- ^ The current activation
          , connections :: IntMap Double -- ^ The inputs to this Neuron
-         , yHeight     :: Rational          -- ^ Visualization height
+         , yHeight     :: Rational      -- ^ Visualization height
+         , neurType    :: NodeType      -- ^ Type, used in pushThrough
          }
   deriving (Show)
            
@@ -83,7 +86,7 @@ data Network =
 -- | Takes the previous step's activations and current inputs and gives a
 -- function to update a neuron.
 stepNeuron :: IntMap Double -> Neuron -> Neuron
-stepNeuron acts (Neuron _ conns yh) = Neuron (modSig weightedSum) conns yh
+stepNeuron acts (Neuron _ conns yh nt) = Neuron (modSig weightedSum) conns yh nt
   where oneFactor nId w = (acts IM.! nId) * w
         weightedSum = IM.foldlWithKey' (\acc k w -> acc + oneFactor k w) 0 conns
 
@@ -109,12 +112,35 @@ snapshot net = go (netDepth net - 1)
         go n ds = stepNetwork (go (n - 1) ds) ds
 
 
+-- | Specialized  'snapshot' for nonrecurrent nets. Will break on recurrent
+-- connections.
+pushThrough :: Network -> [Double] -> [Double]
+pushThrough net inputs = output
+  where nodeOrder = sortBy (compare `on` (yHeight . snd)) $ IM.toList nodeMap
+
+        nodeMap = netState net
+        
+        nonInputs = filter (\p -> neurType (snd p) /= Input) nodeOrder
+
+        inPairs = zip (map getNodeId $ netInputs net) (inputs ++ [1])
+
+        initState = foldl' (flip $ uncurry IM.insert) IM.empty inPairs
+
+        addOne :: IntMap Double -> (Int, Neuron) -> IntMap Double
+        addOne acc (nId, neur) =
+          IM.insert nId (activation (stepNeuron acc neur)) acc
+
+        final = foldl' addOne initState nonInputs
+
+        output = map ((final IM.!) . getNodeId) (netOutputs net)
+
+
 mkPhenotype :: Genome -> Network
 mkPhenotype Genome{..} = (IM.foldl' addConn nodeHusk connGenes) { netInputs = map NodeId ins
                                                                 , netOutputs = map NodeId outs
                                                                 , netDepth = dep }
-  where addNode n@(Network _ _ s _) nId (NodeGene _ yh) =
-          n { netState = IM.insert nId (Neuron 0 IM.empty yh) s
+  where addNode n@(Network _ _ s _) nId (NodeGene nt yh) =
+          n { netState = IM.insert nId (Neuron 0 IM.empty yh nt) s
             }
 
         ins = IM.keys . IM.filter (\ng -> nodeType ng == Input) $ nodeGenes
@@ -128,7 +154,7 @@ mkPhenotype Genome{..} = (IM.foldl' addConn nodeHusk connGenes) { netInputs = ma
 
         dep = S.size depthSet
 
-        addConn2Node nId w (Neuron a cs yh) = Neuron a (IM.insert nId w cs) yh
+        addConn2Node nId w (Neuron a cs yh nt) = Neuron a (IM.insert nId w cs) yh nt
 
         addConn net@Network{ netState = s } ConnGene{..}
           | not connEnabled = net

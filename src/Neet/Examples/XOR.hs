@@ -53,7 +53,7 @@ xorAnswers = [False, True, True, False]
 sampleFit :: [[Double]] -> [Bool] -> GenScorer [Double]
 sampleFit questions answers = GS intermed ff criteria
   where intermed g = map try questions
-          where try samp = head . getOutput $ snapshot net samp
+          where try samp = head $ pushThrough net samp
                 net = mkPhenotype g
         ff ds = (fromIntegral (length answers) - sumDiffs)**2
           where sumDiffs = sum $ zipWith (\x y -> abs (x - y)) ds binarized

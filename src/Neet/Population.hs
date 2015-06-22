@@ -63,7 +63,7 @@ import qualified Data.MultiMap as MM
 import Data.Map (Map)
 import qualified Data.Map as M
 
-import Data.List (foldl', maximumBy)
+import Data.List (foldl', maximumBy, sortBy)
 
 import Data.Maybe
 
@@ -284,7 +284,10 @@ trainOnce scorer pop = (generated, msolution)
         -- | Distribution of species.
         candSpecs :: MonadRandom m => [(Parameters, Int, m (Double,Genome))]
         candSpecs = zip3 ps realShares pickers
-          where initShares = map share masterList
+          where sortedMaster = sortBy revComp masterList
+                -- | Reversed comparison on best score, to get a descending sorted list
+                revComp (_,(sp1,_,_)) (_,(sp2,_,_)) = (compare `on` (bestScore . specScore)) sp2 sp1
+                initShares = map share sortedMaster
                 share (_,(_, _, adj)) = floor $ adj / totalFitness * dubSize
                 remaining = totalSize - foldl' (+) 0 initShares
                 distributeRem _ [] = error "Should run out of numbers first"
@@ -294,14 +297,14 @@ trainOnce scorer pop = (generated, msolution)
                   | otherwise = l
                 realShares = distributeRem remaining initShares
                 pickers :: MonadRandom m => [m (Double, Genome)]
-                pickers = map picker masterList
+                pickers = map picker sortedMaster
                   where picker (_,(s, mmap, _)) =
                           let numToTake = specSize s `div` 5 + 1
                               desc = M.toDescList $ MM.toMap mmap
                               toPairs (k, vs) = map (\v -> (k,v)) vs
                               culled = take numToTake $ desc >>= toPairs
                           in uniform culled
-                ps = map (\(_,(s,_,_)) -> chooseParams s) masterList
+                ps = map (\(_,(s,_,_)) -> chooseParams s) sortedMaster
 
         applyN :: Monad m => Int -> (a -> m a) -> a -> m a
         applyN 0 _  x = return x

@@ -233,7 +233,12 @@ mutateConn params innos g = do
         makePair (n1,g1) (n2,g2) = (ConnSig (NodeId n1) (NodeId n2), yHint g2 <= yHint g1)
 
         -- | Possible input -> output pairs
-        candidates = M.fromList $ makePair <$> nodes <*> nonInputs
+        candidates = M.fromList $
+                     if recurrencies params
+                     then makePair <$> nodes <*> nonInputs
+                     else filter nonRec $ makePair <$> nodes <*> nonInputs
+
+        nonRec (_,reccy) = not reccy
 
         -- | Which pairs are not taken
         allowed = M.toList $ M.difference candidates taken
@@ -356,14 +361,14 @@ crossConns params m1 m2 = T.sequence $ superLeft flipConn return m1 m2
 
 
 -- | Crossover on just nodes
-crossNodes :: MonadRandom m => IntMap NodeGene -> IntMap NodeGene ->
-              m (IntMap NodeGene)
-crossNodes m1 m2 = T.sequence $ superLeft flipCoin return m1 m2
+crossNodes :: IntMap NodeGene -> IntMap NodeGene ->
+              IntMap NodeGene
+crossNodes m1 m2 = superLeft (\a _ -> a) id m1 m2
 
 
 -- | Crossover. The first argument is the fittest genome.
 crossover :: MonadRandom m => Parameters -> Genome -> Genome -> m Genome
-crossover params g1 g2 = Genome `liftM` newNodes `ap` newConns `ap` return newNextNode
+crossover params g1 g2 = Genome newNodes `liftM` newConns `ap` return newNextNode
   where newNextNode = max (nextNode g1) (nextNode g2)
         newConns = crossConns params (connGenes g1) (connGenes g2)
         newNodes = crossNodes (nodeGenes g1) (nodeGenes g2)

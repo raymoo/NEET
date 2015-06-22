@@ -45,6 +45,7 @@ data Parameters =
              , dropTime       :: Maybe Int -- ^ Drop a species if it doesn't improve for this long,
                                            -- and it hasn't hosted the most successful genome.
              , noCrossover    :: Double -- ^ Percent of population that mutates without crossover
+             , recurrencies   :: Bool   -- ^ Whether to allow recurrent connections
              }
   deriving (Show)
 
@@ -73,6 +74,7 @@ defParams =
              , distParams = defDP
              , dropTime = Just 15
              , noCrossover = 0.25
+             , recurrencies = False
              } 
 
 

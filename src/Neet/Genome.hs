@@ -426,7 +426,7 @@ graphParams =
          , clusterID = iderizer
          , fmtCluster = clusterizer
          , fmtNode = const []
-         , fmtEdge = \(_,_,w) -> [ toLabel w ]
+         , fmtEdge = \(_,_,w) -> [ toLabel $ fix2 w ]
          }
   where categorizer (nId, ng) = C (yHint ng) (N (nId, yHint ng))
         iderizer 0 = Str "Input Layer"
@@ -447,6 +447,7 @@ graphParams =
         clusterizer _ = [ GraphAttrs [ whiteAttr ]
                         , NodeAttrs [ solidAttr, greenAttr, circAttr ]
                         ]
+        fix2 x = (fromInteger $ round $ x * (100)) / (10^^(2 :: Int)) :: Double
 
 
 -- | This graph produced is ugly and janky and will have bugs, like hidden nodes

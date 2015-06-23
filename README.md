@@ -7,12 +7,14 @@ Super Mario World. I plan on using this package to mess around with AI.
 - Lots of parameters
 - Training networks
 - Using networks
+- Parallel fitness evaluation
 
 ## Planned Features
 - Serialization
 - Better rendering
 - Training in an arbitrary monad
 - Split the parameters up
+- (Maybe) Parallel evaluation of breeding functions
 
 ## Lofty Dreams
 - CPPN and HyperNEAT support

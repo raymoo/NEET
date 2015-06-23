@@ -45,6 +45,7 @@ module Neet.Genome ( -- * Genes
                    , Genome(..)
                      -- ** Construction
                    , fullConn
+                   , sparseConn
                      -- ** Breeding
                    , mutate
                    , crossover
@@ -158,6 +159,26 @@ fullConn Parameters{..} iSize oSize = do
   conns <- zipWith (\(inN, outN) w -> ConnGene (NodeId inN) (NodeId outN) w True False)
            nodePairs `liftM` getRandomRs (-weightRange,weightRange)
   let connGenes = IM.fromList $ zip [1..] conns
+  return $ Genome{..}
+
+
+-- | Like 'fullConn', but with only some input-outputs connected. First integer
+-- parameters is the max number of connections to start with.
+sparseConn :: MonadRandom m => Parameters -> Int -> Int -> Int -> m Genome
+sparseConn Parameters{..} cons iSize oSize = do
+  let inCount = iSize + 1
+      inIDs = [1..inCount]
+      outIDs = [inCount + 1..oSize + inCount]
+      inputGenes = zip inIDs $ repeat (NodeGene Input 0)
+      outputGenes = zip outIDs $ repeat (NodeGene Output 1)
+      nodeGenes = IM.fromList $ inputGenes ++ outputGenes
+      nextNode = NodeId $ inCount + oSize + 1
+      nodePairs = (,) <$> inIDs <*> outIDs
+      idNodePairs = zip [1..] nodePairs
+  conPairs <- replicateM cons (uniform idNodePairs)
+  conns <- zipWith (\(inno,(inN, outN)) w -> (inno, ConnGene (NodeId inN) (NodeId outN) w True False))
+           conPairs `liftM` getRandomRs (-weightRange, weightRange)
+  let connGenes = IM.fromList conns
   return $ Genome{..}
 
 

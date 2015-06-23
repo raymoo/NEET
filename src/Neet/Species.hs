@@ -28,6 +28,7 @@ Portability : ghc
 -}
 
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE BangPatterns #-}
 module Neet.Species (
                       Species(..)
                     , SpecScore(..)
@@ -65,7 +66,7 @@ data Species =
 
 
 -- | Scoring data
-data SpecScore = SpecScore { bestScore :: Double, bestGen :: Genome }
+data SpecScore = SpecScore { bestScore :: !Double, bestGen :: !Genome }
 
 
 instance Show Species where
@@ -84,9 +85,9 @@ newSpec gen gens = Species (length gens + 1) (gen:gens) (SpecScore 0 gen) 0
 -- | A result of evaluating a species
 data TestResult =
   TR { trScores :: MultiMap Double Genome -- ^ The score of each organism
-     , trSS     :: SpecScore              -- ^ Result 'SpecScore'
-     , trAdj    :: Double                 -- ^ Total adjusted fitness
-     , trSol    :: Maybe Genome           -- ^ Possible Solution
+     , trSS     :: !SpecScore              -- ^ Result 'SpecScore'
+     , trAdj    :: !Double                 -- ^ Total adjusted fitness
+     , trSol    :: !(Maybe Genome)           -- ^ Possible Solution
      }
 
 findMay :: (a -> Bool) -> [a] -> Maybe a
@@ -101,7 +102,7 @@ runFitTest :: GenScorer a -> Species -> TestResult
 runFitTest GS{..} Species{..} = TR mmap ss (totF / dubSize) msolution
   where dubSize = fromIntegral specSize :: Double
         (mmap, totF) = foldl' accumOne (MM.empty, 0) resses
-        calcOne g = let score = gScorer g in (score, g)
+        calcOne g = let !score = gScorer g in (score, g)
         resses = map calcOne specOrgs
         msolution = fmap snd . findMay (\pair -> winCriteria (fst pair)) $ resses
         accumOne (accM, accA) (score, g) = (MM.insert fit g accM, accA + fit)

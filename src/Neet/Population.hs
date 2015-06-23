@@ -74,7 +74,7 @@ import Control.Monad.Trans.State
 import Control.Applicative
 import Control.Monad
 
-
+import Control.Parallel.Strategies
 
 import Data.Function
 
@@ -141,6 +141,8 @@ data PopSettings =
      , psOutputs :: Int        -- ^ Number of outputs
      , psParams  :: Parameters -- ^ Parameters for large species
      , psParamsS :: Parameters -- ^ Parameters for small species
+     , sparse    :: Maybe Int  -- ^ If Just n, will be sparse with n connections.
+                               -- Otherwise fully connected.
      } 
   deriving (Show)
 
@@ -205,7 +207,7 @@ speciate params specs gens = do
         newSpecies (SB sId _ (g:gs)) = Just $ (sId, newSpec g gs)
 
 
--- | Generates a fully connected starter population, given a seed.
+-- | Generates a starter population
 newPop :: Int -> PopSettings -> Population
 newPop seed PS{..} = fst $ runPopM generate initCont
   where popSize = psSize
@@ -214,7 +216,10 @@ newPop seed PS{..} = fst $ runPopM generate initCont
         initCont = PC (InnoId $ psInputs * psOutputs + 2) (mkStdGen seed)
         popParams = psParams
         popParamsS = psParamsS
-        generateGens = replicateM psSize (fullConn psParams psInputs psOutputs)
+        orgGenner = case sparse of
+                     Nothing -> fullConn psParams
+                     Just conCount -> sparseConn psParams conCount
+        generateGens = replicateM psSize (orgGenner psInputs psOutputs)
         popGen = 1
         generate = do
           gens <- generateGens
@@ -237,8 +242,11 @@ trainOnce scorer pop = (generated, msolution)
         
         initSpecs = popSpecs pop
 
+        oneEval :: Strategy (Species, TestResult)
+        oneEval = evalTuple2 r0 rseq
+
         -- | Map to fitness data from runFitTest
-        fits = M.map (\sp -> (sp, runFitTest scorer sp)) initSpecs
+        fits = M.map (\sp -> (sp, runFitTest scorer sp)) initSpecs `using` parTraversable oneEval
 
         msolution = go $ map (trSol . snd) $ M.elems fits
           where go [] = Nothing

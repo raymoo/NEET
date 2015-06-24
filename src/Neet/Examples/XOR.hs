@@ -88,7 +88,8 @@ xorExperiment = do
   _ <- getLine
   putStrLn "Running XOR experiment with 150 population and default parameters"
   seed <- randomIO
-  let pop = newPop seed (PS 150 2 1 defParams (Just 2))
+  let pop = newPop seed (PS 150 2 1 defParams { distParams = dp } Nothing)
+      dp = defDistParams { delta_t = 5 }
   (pop', sol) <- xorLoop pop
   printInfo pop'
   putStrLn $ "Solution found in generation " ++ show (popGen pop')

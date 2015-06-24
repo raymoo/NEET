@@ -146,8 +146,8 @@ instance Serialize Genome
 -- the connections are deterministic, so when generating a population, you
 -- can just start the innovation number at (iSize + 1) * oSize, since the network
 -- includes an additional input for the bias.
-fullConn :: MonadRandom m => Parameters -> Int -> Int -> m Genome
-fullConn Parameters{..} iSize oSize = do
+fullConn :: MonadRandom m => MutParams -> Int -> Int -> m Genome
+fullConn MutParams{..} iSize oSize = do
   let inCount = iSize + 1
       inIDs = [1..inCount]
       outIDs = [inCount + 1..oSize + inCount]
@@ -164,8 +164,8 @@ fullConn Parameters{..} iSize oSize = do
 
 -- | Like 'fullConn', but with only some input-outputs connected. First integer
 -- parameters is the max number of connections to start with.
-sparseConn :: MonadRandom m => Parameters -> Int -> Int -> Int -> m Genome
-sparseConn Parameters{..} cons iSize oSize = do
+sparseConn :: MonadRandom m => MutParams -> Int -> Int -> Int -> m Genome
+sparseConn MutParams{..} cons iSize oSize = do
   let inCount = iSize + 1
       inIDs = [1..inCount]
       outIDs = [inCount + 1..oSize + inCount]
@@ -183,8 +183,8 @@ sparseConn Parameters{..} cons iSize oSize = do
 
 
 -- | Mutate the weights - perturb or make entirely new weights
-mutateWeights :: MonadRandom m => Parameters -> Genome -> m Genome
-mutateWeights Parameters{..} gen@Genome{..} = do
+mutateWeights :: MonadRandom m => MutParams -> Genome -> m Genome
+mutateWeights MutParams{..} gen@Genome{..} = do
   roll <- getRandomR (0,1)
   if roll > mutWeightRate
     then return gen
@@ -225,7 +225,7 @@ addConn conn (innos, conns) = case M.lookup siggy innos of
 -- | Mutation of additional connection. 'Map' parameter is context of previous
 -- innovations. This could be global, or per species generation.
 mutateConn :: (MonadFresh InnoId m, MonadRandom m) =>
-              Parameters -> Map ConnSig InnoId -> Genome -> m (Map ConnSig InnoId, Genome)
+              MutParams -> Map ConnSig InnoId -> Genome -> m (Map ConnSig InnoId, Genome)
 mutateConn params innos g = do
   roll <- getRandomR (0,1)
   if roll > addConnRate params
@@ -287,7 +287,7 @@ mutateConn params innos g = do
 
 -- | Mutation of additional node.
 mutateNode :: (MonadRandom m, MonadFresh InnoId m) =>
-              Parameters -> Map ConnSig InnoId ->
+              MutParams -> Map ConnSig InnoId ->
               Genome -> m (Map ConnSig InnoId, Genome)
 mutateNode params innos g = do
   roll <- getRandomR (0,1)
@@ -348,7 +348,7 @@ mutateNode params innos g = do
 
 
 -- | Mutates the genome, using the specified parameters and innovation context.
-mutate :: (MonadRandom m, MonadFresh InnoId m) => Parameters -> Map ConnSig InnoId ->
+mutate :: (MonadRandom m, MonadFresh InnoId m) => MutParams -> Map ConnSig InnoId ->
           Genome -> m (Map ConnSig InnoId, Genome)
 mutate params innos g = do
   g' <- mutateWeights params g
@@ -368,7 +368,7 @@ flipCoin a1 a2 = do
 
 
 -- | Crossover on just the connections. Put the fittest map first.
-crossConns :: MonadRandom m => Parameters -> IntMap ConnGene -> IntMap ConnGene ->
+crossConns :: MonadRandom m => MutParams -> IntMap ConnGene -> IntMap ConnGene ->
               m (IntMap ConnGene)
 crossConns params m1 m2 = T.sequence $ superLeft flipConn return m1 m2
   where flipConn c1 c2 = do
@@ -390,7 +390,7 @@ crossNodes m1 m2 = superLeft (\a _ -> a) id m1 m2
 
 
 -- | Crossover. The first argument is the fittest genome.
-crossover :: MonadRandom m => Parameters -> Genome -> Genome -> m Genome
+crossover :: MonadRandom m => MutParams -> Genome -> Genome -> m Genome
 crossover params g1 g2 = Genome newNodes `liftM` newConns `ap` return newNextNode
   where newNextNode = max (nextNode g1) (nextNode g2)
         newConns = crossConns params (connGenes g1) (connGenes g2)
@@ -399,7 +399,7 @@ crossover params g1 g2 = Genome newNodes `liftM` newConns `ap` return newNextNod
 
 -- | Breed two genomes together
 breed :: (MonadRandom m, MonadFresh InnoId m) =>
-         Parameters -> Map ConnSig InnoId -> Genome -> Genome ->
+         MutParams -> Map ConnSig InnoId -> Genome -> Genome ->
          m (Map ConnSig InnoId, Genome)
 breed params innos g1 g2 =
   crossover params g1 g2 >>= mutate params innos

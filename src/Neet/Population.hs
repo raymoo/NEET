@@ -92,7 +92,6 @@ data Population =
              , popCont   :: !PopContext         -- ^ Tracking state and fresh values
              , nextSpec  :: !SpecId             -- ^ The next species ID
              , popParams  :: Parameters        -- ^ Parameters for large species
-             , popParamsS :: Parameters        -- ^ Parameters for small species
              , popGen    :: Int                -- ^ Current generation
              }
   deriving (Show)
@@ -140,7 +139,6 @@ data PopSettings =
      , psInputs  :: Int        -- ^ Number of inputs
      , psOutputs :: Int        -- ^ Number of outputs
      , psParams  :: Parameters -- ^ Parameters for large species
-     , psParamsS :: Parameters -- ^ Parameters for small species
      , sparse    :: Maybe Int  -- ^ If Just n, will be sparse with n connections.
                                -- Otherwise fully connected.
      } 
@@ -210,15 +208,15 @@ speciate params specs gens = do
 -- | Generates a starter population
 newPop :: Int -> PopSettings -> Population
 newPop seed PS{..} = fst $ runPopM generate initCont
-  where popSize = psSize
+  where Parameters{..} = psParams
+        popSize = psSize
         popBScore = 0
         popBSpec = SpecId 1
         initCont = PC (InnoId $ psInputs * psOutputs + 2) (mkStdGen seed)
         popParams = psParams
-        popParamsS = psParamsS
         orgGenner = case sparse of
-                     Nothing -> fullConn psParams
-                     Just conCount -> sparseConn psParams conCount
+                     Nothing -> fullConn mutParams
+                     Just conCount -> sparseConn mutParams conCount
         generateGens = replicateM psSize (orgGenner psInputs psOutputs)
         popGen = 1
         generate = do
@@ -234,10 +232,12 @@ newPop seed PS{..} = fst $ runPopM generate initCont
 trainOnce :: GenScorer a -> Population -> (Population, Maybe Genome)
 trainOnce scorer pop = (generated, msolution)
   where params = popParams pop
-        paramsS = popParamsS pop
 
-        chooseParams :: Species -> Parameters
-        chooseParams s = if specSize s >= largeSize params then params else paramsS
+        mParams = mutParams params
+        mParamsS = mutParamsS params
+          
+        chooseParams :: Species -> MutParams
+        chooseParams s = if specSize s >= largeSize params then mParams else mParamsS
         {-# INLINE chooseParams #-}
         
         initSpecs = popSpecs pop
@@ -290,7 +290,7 @@ trainOnce scorer pop = (generated, msolution)
         dubSize = fromIntegral totalSize
 
         -- | Distribution of species.
-        candSpecs :: MonadRandom m => [(Parameters, Int, m (Double,Genome))]
+        candSpecs :: MonadRandom m => [(MutParams, Int, m (Double,Genome))]
         candSpecs = zip3 ps realShares pickers
           where sortedMaster = sortBy revComp masterList
                 -- | Reversed comparison on best score, to get a descending sorted list
@@ -320,7 +320,7 @@ trainOnce scorer pop = (generated, msolution)
 
         -- | Generate the genomes for a species
         specGens :: (MonadFresh InnoId m, MonadRandom m) =>
-                    Map ConnSig InnoId -> (Parameters, Int, m (Double, Genome)) ->
+                    Map ConnSig InnoId -> (MutParams, Int, m (Double, Genome)) ->
                     m (Map ConnSig InnoId, [Genome])
         specGens inns (p, n, gen) = applyN n genOne (inns, [])
           where genOne (innos, gs) = do

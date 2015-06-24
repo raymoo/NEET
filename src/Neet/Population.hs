@@ -63,7 +63,7 @@ import qualified Data.MultiMap as MM
 import Data.Map (Map)
 import qualified Data.Map as M
 
-import Data.List (foldl', maximumBy, sortBy)
+import Data.List (foldl', maximumBy, sortBy, mapAccumL)
 
 import Data.Maybe
 
@@ -295,8 +295,11 @@ trainOnce scorer pop = (generated, msolution)
           where sortedMaster = sortBy revComp masterList
                 -- | Reversed comparison on best score, to get a descending sorted list
                 revComp (_,(sp1,_,_)) (_,(sp2,_,_)) = (compare `on` (bestScore . specScore)) sp2 sp1
-                initShares = map share sortedMaster
-                share (_,(_, _, adj)) = floor $ adj / totalFitness * dubSize
+                initShares = snd $ mapAccumL share 0 sortedMaster
+                share skim (_,(_, _, adj)) = (newSkim, actualShare)
+                  where everything = adj / totalFitness * dubSize + skim
+                        actualShare = floor everything
+                        newSkim = everything - fromIntegral actualShare
                 remaining = totalSize - foldl' (+) 0 initShares
                 distributeRem _ [] = error "Should run out of numbers first"
                 distributeRem n l@(x:xs)

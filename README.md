@@ -13,7 +13,6 @@ Super Mario World. I plan on using this package to mess around with AI.
 - Serialization
 - Better rendering
 - Training in an arbitrary monad
-- Split the parameters up
 - Phased evolution (Alternating complexifying and pruning)
 - (Maybe) Parallel evaluation of breeding functions
 

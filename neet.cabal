@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                neet
-version:             0.2.0.1
+version:             0.3.0.0
 synopsis:            A NEAT library for Haskell
 -- description:         
 homepage:            https://github.com/raymoo/NEET

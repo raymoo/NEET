@@ -421,7 +421,11 @@ distance params g1 g2 = c1 * exFactor + c2 * disFactor + c3 * weightFactor
         
         weightDiffs = differences conns1 conns2
 
-        weightFactor = IM.foldl (+) 0 weightDiffs / fromIntegral (IM.size weightDiffs)
+        weightsSize = IM.size weightDiffs
+
+        weightFactor
+          | weightsSize > 0 = IM.foldl (+) 0 weightDiffs / fromIntegral weightsSize
+          | otherwise = 0
 
         ids1 = IM.keysSet conns1
 

@@ -166,7 +166,7 @@ data SpecBucket =
 shuttleOrgs :: MonadFresh SpecId m =>
                Parameters -> [SpecBucket] -> [Genome] -> m [SpecBucket]
 shuttleOrgs p@Parameters{..} buckets = foldM shutOne buckets
-  where DistParams{..} = distParams
+  where DistParams{..} = distParams specParams
         shutOne :: MonadFresh SpecId m => [SpecBucket] -> Genome -> m [SpecBucket]
         shutOne (SB sId rep gs:bs) g
           | distance p g rep <= delta_t = return $ SB sId rep (g:gs) : bs
@@ -356,10 +356,26 @@ trainOnce scorer pop = (generated, msolution)
         generated :: Population
         generated = fst $ runPopM generate (popCont pop)
 
+
         generate :: PopM Population
         generate = do
           (specs, nextSpec') <- genNewSpecies
-          let bScoreNow = (bestScore . specScore) veryBest
+          let specCount = M.size specs
+              newParams :: Parameters
+              newParams =
+                case specParams params of
+                 Simple _ -> newParams
+                 Target dp st@SpeciesTarget{..}
+                   | specCount > snd targetCount ->
+                       let newDP = dp { delta_t = delta_t dp + adjustAmount }
+                       in params { specParams = Target newDP st }
+                   | specCount < fst targetCount ->
+                       let newDP = dp { delta_t = delta_t dp - adjustAmount }
+                       in params { specParams = Target newDP st }
+                   | otherwise -> params
+                             
+
+              bScoreNow = (bestScore . specScore) veryBest
               bOrgNow = (bestGen . specScore) veryBest
               bSpecNow = bestId
               (bScore, bOrg, bSpec) =
@@ -372,6 +388,7 @@ trainOnce scorer pop = (generated, msolution)
                      , popBOrg = bOrg
                      , popBSpec = bSpec
                      , popCont = cont'
+                     , popParams = newParams
                      , nextSpec = nextSpec'
                      , popGen = popGen pop + 1
                      } 

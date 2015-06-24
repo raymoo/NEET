@@ -28,25 +28,41 @@ Portability : portable
 -}
 
 module Neet.Parameters ( Parameters(..)
-                       , DistParams(..)
-                       , MutParams(..)
                        , defParams
+                       , DistParams(..)
                        , defDistParams
+                       , MutParams(..)
                        , defMutParams
                        , defMutParamsS
+                       , SpeciesParams(..)
+                       , distParams
+                       , SpeciesTarget(..)
                        ) where
 
 
 -- | The genetic parameters
 data Parameters =
-  Parameters { mutParams     :: MutParams
-             , mutParamsS    :: MutParams  -- ^ Mutation parameters for small populations
-             , largeSize     :: Int        -- ^ The minimum size for a species to be considered large
-             , distParams    :: DistParams -- ^ Parameters for the distance function
-             , dropTime      :: Maybe Int -- ^ Drop a species if it doesn't improve for this long,
-                                          -- and it hasn't hosted the most successful genome.
+  Parameters { mutParams  :: MutParams
+             , mutParamsS :: MutParams     -- ^ Mutation parameters for small populations
+             , largeSize  :: Int           -- ^ The minimum size for a species to be considered large
+             , specParams :: SpeciesParams -- ^ Parameters for the distance function
+             , dropTime   :: Maybe Int     -- ^ Drop a species if it doesn't improve for this long,
+                                           -- and it hasn't hosted the most successful genome.
              }
   deriving (Show)
+
+
+-- | Settings for distance. `Simple` is for fixed distance calculations. `Target`
+-- should be used when you want the threshold value for distance to change to
+-- try to meet a desired species count.
+data SpeciesParams = Simple DistParams
+                   | Target DistParams SpeciesTarget 
+                   deriving (Show)
+
+
+distParams :: SpeciesParams -> DistParams
+distParams (Simple dp) = dp
+distParams (Target dp _) = dp
 
 
 -- | Distance Parameters
@@ -56,6 +72,15 @@ data DistParams =
              , dp3 :: Double -- ^ Coefficient to the average weight differences
              , delta_t :: Double -- ^ How close counts as the same species
              } 
+  deriving (Show)
+
+
+-- | How to seek a target species count
+data SpeciesTarget =
+  SpeciesTarget { targetCount  :: (Int,Int) -- ^ Desired range of species count, inclusive
+                , adjustAmount :: Double    -- ^ How much to adjust the distance threshold
+                                            -- if there are too many/not enough species
+                } 
   deriving (Show)
 
 
@@ -97,7 +122,7 @@ defParams =
   Parameters { mutParams = defMutParams
              , mutParamsS = defMutParamsS
              , largeSize = 20
-             , distParams = defDistParams
+             , specParams = Simple defDistParams
              , dropTime = Just 15
              } 
 

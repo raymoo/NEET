@@ -414,7 +414,7 @@ differences = IM.mergeWithKey (\_ c1 c2 -> Just $ oneDiff c1 c2) (const IM.empty
 -- | Genetic distance between two genomes
 distance :: Parameters -> Genome -> Genome -> Double
 distance params g1 g2 = c1 * exFactor + c2 * disFactor + c3 * weightFactor
-  where DistParams c1 c2 c3 _ = distParams params
+  where DistParams c1 c2 c3 _ = distParams . specParams $ params
 
         conns1 = connGenes g1
         conns2 = connGenes g2

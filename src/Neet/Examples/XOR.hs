@@ -88,7 +88,8 @@ xorExperiment = do
   _ <- getLine
   putStrLn "Running XOR experiment with 150 population and default parameters"
   seed <- randomIO
-  let pop = newPop seed (PS 150 2 1 defParams { distParams = dp } Nothing)
+  let pop = newPop seed (PS 150 2 1 defParams { specParams = sp } Nothing)
+      sp = Target dp (SpeciesTarget (14,17) 0.1)
       dp = defDistParams { delta_t = 5 }
   (pop', sol) <- xorLoop pop
   printInfo pop'
@@ -96,6 +97,9 @@ xorExperiment = do
   let score = gScorer xorFit sol
   putStrLn $ "\nOutputs to XOR inputs are: " ++ show score
   putStrLn $ "Fitness (Out of 16): " ++ show (fitnessFunction xorFit score)
+
+  putStrLn $ "Final distance threshold: " ++ show (distParams . specParams $ popParams pop')
+  
   putStrLn "\nPress Enter to view network"
   _ <- getLine
   renderGenome sol

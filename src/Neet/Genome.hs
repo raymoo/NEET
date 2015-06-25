@@ -365,7 +365,7 @@ isOrphanNode nId imap = F.all doesntContain imap
 mutDelConn :: MonadRandom m => MutParams -> Genome -> m Genome
 mutDelConn MutParams{..} genome@Genome{..} = do
   roll <- getRandomR (0,1)
-  if roll > delConnChance
+  if IM.size connGenes <= 1 || roll > delConnChance
     then return genome
     else do
     (connId, deleteThis) <- uniform $ IM.toList connGenes
@@ -392,8 +392,8 @@ mutDelNode :: MonadRandom m => MutParams -> Genome -> m Genome
 mutDelNode MutParams{..} genome@Genome{..} = do
   roll <- getRandomR (0,1)
   if
-    | roll > delNodeChance -> return genome
     | IM.size nodeGenes == ioCount  -> return genome
+    | roll > delNodeChance -> return genome
     | otherwise -> do
         deleteThis <- uniform delCandidates
         let newNodes = IM.delete deleteThis nodeGenes

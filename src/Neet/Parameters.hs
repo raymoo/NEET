@@ -151,6 +151,9 @@ data PhaseParams =
               , phaseWaitTime  :: Int    -- ^ How many generations without a drop
                                          -- in complexity warrants going back to
                                          -- a complexify strategy
+              , delConnChance  :: Double -- ^ How likely it is for a connection to
+                                         -- be erased
+              , delNodeChance  :: Double -- ^ How likely it is for a node to be erased
               } 
   deriving (Show)
 

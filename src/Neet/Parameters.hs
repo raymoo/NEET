@@ -37,6 +37,8 @@ module Neet.Parameters ( Parameters(..)
                        , SpeciesParams(..)
                        , distParams
                        , SpeciesTarget(..)
+                       , PhaseParams(..)
+                       , PhaseState(..)
                        ) where
 
 
@@ -134,3 +136,29 @@ defMutParamsS = defMutParams { addConnRate = 0.05 }
 -- | Parameters used for distance in the paper
 defDistParams :: DistParams
 defDistParams = DistParams 1 1 0.4 3
+
+
+-- | Search Strategy
+data SearchStrat = Complexify
+                 | Phased PhaseParams
+                 deriving (Show)
+
+
+-- | Parameters for phased search
+data PhaseParams =
+  PhaseParams { phaseAddAmount :: Double -- ^ How much to add to the mean complexity
+                                         -- to get the next complexity
+              , phaseWaitTime  :: Int    -- ^ How many generations without a drop
+                                         -- in complexity warrants going back to
+                                         -- a complexify strategy
+              } 
+  deriving (Show)
+
+
+-- | State of phasing
+data PhaseState = Complexifying Double -- ^ The argument is the current threshold
+                                       -- to start pruning at.
+                | Pruning Int Double   -- ^ The first argument is how many generations
+                                       -- the mean complexity has not fallen. The second
+                                       -- is the last mean complexity.
+                deriving (Show)

@@ -362,8 +362,8 @@ isOrphanNode nId imap = F.all doesntContain imap
 
 
 -- | Mutation that can delete a connection
-mutDelConn :: MonadRandom m => PhaseParams -> Genome -> m Genome
-mutDelConn PhaseParams{..} genome@Genome{..} = do
+mutDelConn :: MonadRandom m => MutParams -> Genome -> m Genome
+mutDelConn MutParams{..} genome@Genome{..} = do
   roll <- getRandomR (0,1)
   if roll > delConnChance
     then return genome
@@ -388,8 +388,8 @@ doesntContainNode nId cg = connIn cg /= nId && connOut cg /= nId
 
 
 -- | Mutation that may delete a node
-mutDelNode :: MonadRandom m => PhaseParams -> Genome -> m Genome
-mutDelNode PhaseParams{..} genome@Genome{..} = do
+mutDelNode :: MonadRandom m => MutParams -> Genome -> m Genome
+mutDelNode MutParams{..} genome@Genome{..} = do
   roll <- getRandomR (0,1)
   if
     | roll > delNodeChance -> return genome
@@ -403,7 +403,7 @@ mutDelNode PhaseParams{..} genome@Genome{..} = do
 
 
 -- | Mutates the genome, but uses subtractive mutations instead of additive.
-mutateSub :: MonadRandom m => PhaseParams -> Genome -> m Genome
+mutateSub :: MonadRandom m => MutParams -> Genome -> m Genome
 mutateSub params = mutDelNode params >=> mutDelConn params
 
 

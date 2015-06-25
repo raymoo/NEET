@@ -94,6 +94,9 @@ data MutParams =
             , weightRange    :: Double -- ^ A new max is between negative this and positive this
             , addConnRate    :: Double -- ^ How often new connections are made
             , addNodeRate    :: Double -- ^ How often new nodes are added
+            , delConnChance  :: Double -- ^ How likely it is for a connection to
+                                       -- be erased
+            , delNodeChance  :: Double -- ^ How likely it is for a node to be erased
             , recurrencies   :: Bool   -- ^ Whether to allow recurrent connections
             , noCrossover    :: Double -- ^ Percent of population that mutates without crossover
             , disableChance  :: Double -- ^ How likely that a disabled parent results
@@ -111,6 +114,8 @@ defMutParams =
             , weightRange = 2.5
             , addConnRate = 0.3
             , addNodeRate = 0.03
+            , delConnChance = 0
+            , delNodeChance = 0
             , recurrencies = False
             , noCrossover = 0.25
             , disableChance = 0.75
@@ -151,9 +156,6 @@ data PhaseParams =
               , phaseWaitTime  :: Int    -- ^ How many generations without a drop
                                          -- in complexity warrants going back to
                                          -- a complexify strategy
-              , delConnChance  :: Double -- ^ How likely it is for a connection to
-                                         -- be erased
-              , delNodeChance  :: Double -- ^ How likely it is for a node to be erased
               } 
   deriving (Show)
 

@@ -404,7 +404,7 @@ mutDelNode MutParams{..} genome@Genome{..} = do
 
 -- | Mutates the genome, but uses subtractive mutations instead of additive.
 mutateSub :: MonadRandom m => MutParams -> Genome -> m Genome
-mutateSub params = mutDelNode params >=> mutDelConn params
+mutateSub params = mutDelNode params >=> mutDelConn params >=> mutateWeights params
 
 
 -- | Mutates the genome, using the specified parameters and innovation context.

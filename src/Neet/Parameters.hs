@@ -37,6 +37,7 @@ module Neet.Parameters ( Parameters(..)
                        , SpeciesParams(..)
                        , distParams
                        , SpeciesTarget(..)
+                       , SearchStrat(..)
                        , PhaseParams(..)
                        , PhaseState(..)
                        ) where

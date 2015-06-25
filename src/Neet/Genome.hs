@@ -606,7 +606,11 @@ validateGenome Genome{..} = case errRes of
         nonDup
           | uniq sigList = Nothing
           | otherwise = Just "Non unique connection signatures"
-        errRes = catMaybes [nodeOk, connsOk, nonDup]
+        ioCountGood
+          | IM.size (IM.filter (\n -> nodeType n == Input || nodeType n == Output) nodeGenes) ==
+            ioCount = Nothing
+          | otherwise = Just "ioCount bad"
+        errRes = catMaybes [nodeOk, connsOk, nonDup, ioCountGood]
 
 
 -- | Total number of links and nodes.

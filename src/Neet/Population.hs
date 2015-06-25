@@ -421,6 +421,11 @@ speciesCount :: Population -> Int
 speciesCount Population{..} = M.size popSpecs
 
 
+-- | Average genome complexity of a population
+avgComplexity :: Population -> Int
+avgComplexity pop = M.foldl' (+) 0 . M.map speciesComplexity $ popSpecs pop
+
+
 -- | Validate a population, possibly returning a list of errors
 validatePopulation :: Population -> Maybe [String]
 validatePopulation Population{..} = case errRes of

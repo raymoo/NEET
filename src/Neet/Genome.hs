@@ -372,12 +372,14 @@ mutDelConn MutParams{..} genome@Genome{..} = do
     let newConns = IM.delete connId connGenes
         inOfDeleted = connIn deleteThis
         outOfDeleted = connOut deleteThis
+        inIsHidden = nodeType (nodeGenes IM.! (getNodeId inOfDeleted)) == Hidden
+        outIsHidden = nodeType (nodeGenes IM.! (getNodeId outOfDeleted)) == Hidden
         possiblyRemoved
-          | isOrphanNode inOfDeleted newConns =
+          | inIsHidden && isOrphanNode inOfDeleted newConns =
               IM.delete (getNodeId inOfDeleted) nodeGenes
           | otherwise = nodeGenes
         possiblyRemoved2
-          | isOrphanNode outOfDeleted newConns =
+          | outIsHidden && isOrphanNode outOfDeleted newConns =
               IM.delete (getNodeId outOfDeleted) possiblyRemoved
           | otherwise = possiblyRemoved
     return genome { nodeGenes = possiblyRemoved2, connGenes = newConns }

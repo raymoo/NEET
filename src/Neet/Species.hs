@@ -40,6 +40,7 @@ module Neet.Species (
                     , updateSpec
                       -- * Statistics
                     , maxDist
+                    , speciesComplexity
                       -- * Debugging
                     , validateSpecies
                     ) where
@@ -138,3 +139,8 @@ validateSpecies Species{..} = case orgErrs ++ goodSize of
 -- | Gets the max distance between two genomes in a species
 maxDist :: Parameters -> Species -> Double
 maxDist ps Species{..} = maximum . map (uncurry (distance ps)) $ (,) <$> specOrgs <*> specOrgs
+
+
+-- | Total complexity of all member genomes
+speciesComplexity :: Species -> Int
+speciesComplexity spec = sum $ map genomeComplexity (specOrgs spec)

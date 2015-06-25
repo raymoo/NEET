@@ -33,6 +33,7 @@ Portability : ghc
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Neet.Genome ( -- * Genes
                      NodeId(..)
@@ -50,6 +51,7 @@ module Neet.Genome ( -- * Genes
                    , genomeComplexity 
                      -- ** Breeding
                    , mutateAdd
+                   , mutateSub
                    , crossover
                    , breed
                      -- ** Distance
@@ -70,6 +72,8 @@ import Control.Arrow (first)
 
 import Data.Map.Strict (Map)
 import qualified Data.Traversable as T
+import qualified Data.Foldable as F
+
 import qualified Data.Map.Strict as M
 
 import qualified Data.IntSet as IS
@@ -350,6 +354,57 @@ mutateNode params innos g = do
         addRandNode :: (MonadRandom m, MonadFresh InnoId m) => m (Map ConnSig InnoId, Genome)
         addRandNode =
           pickConn >>= uncurry (addNode . InnoId)
+
+
+isOrphanNode :: NodeId -> IntMap ConnGene -> Bool
+isOrphanNode nId imap = F.all doesntContain imap
+  where doesntContain ConnGene{..} = nId /= connIn && nId /= connOut
+
+
+-- | Mutation that can delete a connection
+mutDelConn :: MonadRandom m => PhaseParams -> Genome -> m Genome
+mutDelConn PhaseParams{..} genome@Genome{..} = do
+  roll <- getRandomR (0,1)
+  if roll > delConnChance
+    then return genome
+    else do
+    (connId, deleteThis) <- uniform $ IM.toList connGenes
+    let newConns = IM.delete connId connGenes
+        inOfDeleted = connIn deleteThis
+        outOfDeleted = connOut deleteThis
+        possiblyRemoved
+          | isOrphanNode inOfDeleted newConns =
+              IM.delete (getNodeId inOfDeleted) nodeGenes
+          | otherwise = nodeGenes
+        possiblyRemoved2
+          | isOrphanNode outOfDeleted newConns =
+              IM.delete (getNodeId outOfDeleted) possiblyRemoved
+          | otherwise = possiblyRemoved
+    return genome { nodeGenes = possiblyRemoved2, connGenes = newConns }
+
+
+doesntContainNode :: NodeId -> ConnGene -> Bool
+doesntContainNode nId cg = connIn cg /= nId && connOut cg /= nId
+
+
+-- | Mutation that may delete a node
+mutDelNode :: MonadRandom m => PhaseParams -> Genome -> m Genome
+mutDelNode PhaseParams{..} genome@Genome{..} = do
+  roll <- getRandomR (0,1)
+  if
+    | roll > delNodeChance -> return genome
+    | IM.size nodeGenes == ioCount  -> return genome
+    | otherwise -> do
+        deleteThis <- uniform delCandidates
+        let newNodes = IM.delete deleteThis nodeGenes
+            newConns = IM.filter (doesntContainNode (NodeId deleteThis)) connGenes
+        return $ genome { nodeGenes = newNodes, connGenes = newConns }
+  where delCandidates = drop ioCount $ IM.keys nodeGenes
+
+
+-- | Mutates the genome, but uses subtractive mutations instead of additive.
+mutateSub :: MonadRandom m => PhaseParams -> Genome -> m Genome
+mutateSub params = mutDelNode params >=> mutDelConn params
 
 
 -- | Mutates the genome, using the specified parameters and innovation context.

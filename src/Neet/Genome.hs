@@ -133,7 +133,8 @@ newtype InnoId = InnoId { getInnoId :: Int }
 -- | A NEAT genome. The innovation numbers are stored in here, and not the genes,
 -- to prevent data duplication.
 data Genome =
-  Genome { nodeGenes :: IntMap NodeGene
+  Genome { ioCount :: Int
+         , nodeGenes :: IntMap NodeGene
          , connGenes :: IntMap ConnGene
          , nextNode :: NodeId
          }
@@ -158,6 +159,7 @@ fullConn MutParams{..} iSize oSize = do
       nodeGenes = IM.fromList $ inputGenes ++ outputGenes
       nextNode = NodeId $ inCount + oSize + 1
       nodePairs = (,) <$> inIDs <*> outIDs
+      ioCount = inCount + oSize
   conns <- zipWith (\(inN, outN) w -> ConnGene (NodeId inN) (NodeId outN) w True False)
            nodePairs `liftM` getRandomRs (-weightRange,weightRange)
   let connGenes = IM.fromList $ zip [1..] conns
@@ -177,6 +179,7 @@ sparseConn MutParams{..} cons iSize oSize = do
       nextNode = NodeId $ inCount + oSize + 1
       nodePairs = (,) <$> inIDs <*> outIDs
       idNodePairs = zip [1..] nodePairs
+      ioCount = inCount + oSize
   conPairs <- replicateM cons (uniform idNodePairs)
   conns <- zipWith (\(inno,(inN, outN)) w -> (inno, ConnGene (NodeId inN) (NodeId outN) w True False))
            conPairs `liftM` getRandomRs (-weightRange, weightRange)
@@ -393,7 +396,7 @@ crossNodes m1 m2 = superLeft (\a _ -> a) id m1 m2
 
 -- | Crossover. The first argument is the fittest genome.
 crossover :: MonadRandom m => MutParams -> Genome -> Genome -> m Genome
-crossover params g1 g2 = Genome newNodes `liftM` newConns `ap` return newNextNode
+crossover params g1 g2 = Genome (ioCount g1) newNodes `liftM` newConns `ap` return newNextNode
   where newNextNode = max (nextNode g1) (nextNode g2)
         newConns = crossConns params (connGenes g1) (connGenes g2)
         newNodes = crossNodes (nodeGenes g1) (nodeGenes g2)

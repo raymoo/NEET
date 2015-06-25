@@ -331,7 +331,7 @@ trainOnce scorer pop = (generated, msolution)
                   if roll <= noCrossover p
                     then do
                     (_,parent) <- gen
-                    (innos', g) <- mutate p innos parent
+                    (innos', g) <- mutateAdd p innos parent
                     return (innos', g:gs)
                     else do
                     (fit1, mom) <- gen

@@ -49,7 +49,7 @@ module Neet.Genome ( -- * Genes
                      -- ** Stats
                    , genomeComplexity 
                      -- ** Breeding
-                   , mutate
+                   , mutateAdd
                    , crossover
                    , breed
                      -- ** Distance
@@ -353,9 +353,9 @@ mutateNode params innos g = do
 
 
 -- | Mutates the genome, using the specified parameters and innovation context.
-mutate :: (MonadRandom m, MonadFresh InnoId m) => MutParams -> Map ConnSig InnoId ->
+mutateAdd :: (MonadRandom m, MonadFresh InnoId m) => MutParams -> Map ConnSig InnoId ->
           Genome -> m (Map ConnSig InnoId, Genome)
-mutate params innos g = do
+mutateAdd params innos g = do
   g' <- mutateWeights params g
   uncurry (mutateNode params) >=> uncurry (mutateConn params) $ (innos, g')
 
@@ -407,7 +407,7 @@ breed :: (MonadRandom m, MonadFresh InnoId m) =>
          MutParams -> Map ConnSig InnoId -> Genome -> Genome ->
          m (Map ConnSig InnoId, Genome)
 breed params innos g1 g2 =
-  crossover params g1 g2 >>= mutate params innos
+  crossover params g1 g2 >>= mutateAdd params innos
 
 
 -- | Gets differences where they exist

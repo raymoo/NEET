@@ -91,7 +91,9 @@ data Population =
              , popBSpec  :: !SpecId             -- ^ Id of the species that hosted the best score
              , popCont   :: !PopContext         -- ^ Tracking state and fresh values
              , nextSpec  :: !SpecId             -- ^ The next species ID
-             , popParams  :: Parameters        -- ^ Parameters for large species
+             , popParams :: Parameters        -- ^ Parameters for large species
+             , popStrat  :: SearchStrat
+             , popPhase  :: PhaseState
              , popGen    :: Int                -- ^ Current generation
              }
   deriving (Show)
@@ -141,6 +143,7 @@ data PopSettings =
      , psParams  :: Parameters -- ^ Parameters for large species
      , sparse    :: Maybe Int  -- ^ If Just n, will be sparse with n connections.
                                -- Otherwise fully connected.
+     , psStrategy :: Maybe PhaseParams
      } 
   deriving (Show)
 
@@ -223,6 +226,11 @@ newPop seed PS{..} = fst $ runPopM generate initCont
           gens <- generateGens
           let (popSpecs, nextSpec) = runSpecM (speciate psParams M.empty gens) (SpecId 1)
               popBOrg = head gens
+              avgComp = fromIntegral (foldl' (+) 0 . map genomeComplexity $ gens) / fromIntegral popSize
+              (popStrat, popPhase) = case psStrategy of
+                Nothing -> (Complexify, Complexifying 0) -- not used
+                Just pp@PhaseParams{..} ->
+                  (Phased pp, Complexifying (phaseAddAmount + avgComp))
           popCont <- PopM get
           return Population{..}
 
@@ -422,8 +430,13 @@ speciesCount Population{..} = M.size popSpecs
 
 
 -- | Average genome complexity of a population
-avgComplexity :: Population -> Int
-avgComplexity pop = M.foldl' (+) 0 . M.map speciesComplexity $ popSpecs pop
+avgComplexity :: Population -> Double
+avgComplexity pop = fromIntegral (totalComplexityMap (popSpecs pop)) / fromIntegral (popSize pop)
+
+
+-- | Helper for avgComplexity
+totalComplexityMap :: Map SpecId Species -> Int
+totalComplexityMap smap = M.foldl' (+) 0 . M.map speciesComplexity $ smap
 
 
 -- | Validate a population, possibly returning a list of errors

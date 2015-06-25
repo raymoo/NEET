@@ -88,7 +88,7 @@ xorExperiment = do
   _ <- getLine
   putStrLn "Running XOR experiment with 150 population and default parameters"
   seed <- randomIO
-  let pop = newPop seed (PS 150 2 1 defParams { specParams = sp } Nothing)
+  let pop = newPop seed (PS 150 2 1 defParams { specParams = sp } Nothing Nothing)
       sp = Target dp (SpeciesTarget (14,17) 0.1)
       dp = defDistParams { delta_t = 5 }
   (pop', sol) <- xorLoop pop

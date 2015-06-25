@@ -46,6 +46,8 @@ module Neet.Genome ( -- * Genes
                      -- ** Construction
                    , fullConn
                    , sparseConn
+                     -- ** Stats
+                   , genomeComplexity 
                      -- ** Breeding
                    , mutate
                    , crossover
@@ -547,3 +549,8 @@ validateGenome Genome{..} = case errRes of
           | uniq sigList = Nothing
           | otherwise = Just "Non unique connection signatures"
         errRes = catMaybes [nodeOk, connsOk, nonDup]
+
+
+-- | Total number of links and nodes.
+genomeComplexity :: Genome -> Int
+genomeComplexity gen = IM.size (nodeGenes gen) + IM.size (nodeGenes gen)

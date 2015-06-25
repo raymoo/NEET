@@ -243,7 +243,24 @@ trainOnce scorer pop = (generated, msolution)
 
         mParams = mutParams params
         mParamsS = mutParamsS params
-          
+
+        avgComp = avgComplexity pop
+
+        newPhase = case (popPhase pop, popStrat pop) of
+          (_, Complexify) -> Complexifying 0
+          (Complexifying thresh, Phased PhaseParams{..})
+            | avgComp < thresh -> Complexifying thresh
+            | otherwise -> Pruning 0 avgComp
+          (Pruning lastFall lastComp, Phased PhaseParams{..})
+            | avgComp < lastComp -> Pruning 0 avgComp
+            | lastFall >= phaseWaitTime -> Complexifying (avgComp + phaseAddAmount)
+            | otherwise -> Pruning (lastFall + 1) avgComp
+            
+        isPruning = case newPhase of
+          Pruning _ _ -> True
+          _ -> False
+
+
         chooseParams :: Species -> MutParams
         chooseParams s = if specSize s >= largeSize params then mParams else mParamsS
         {-# INLINE chooseParams #-}
@@ -334,21 +351,26 @@ trainOnce scorer pop = (generated, msolution)
                     Map ConnSig InnoId -> (MutParams, Int, m (Double, Genome)) ->
                     m (Map ConnSig InnoId, [Genome])
         specGens inns (p, n, gen) = applyN n genOne (inns, [])
-          where genOne (innos, gs) = do
-                  roll <- getRandomR (0,1)
-                  if roll <= noCrossover p
-                    then do
-                    (_,parent) <- gen
-                    (innos', g) <- mutateAdd p innos parent
-                    return (innos', g:gs)
-                    else do
-                    (fit1, mom) <- gen
-                    (fit2, dad) <- gen
-                    (innos', g) <- if fit1 > fit2
-                                   then breed p innos mom dad
-                                   else breed p innos dad mom
-                    return (innos', g:gs)
-
+          where genOne (innos, gs)
+                  | isPruning = do
+                      (_,parent) <- gen
+                      g <- mutateSub p parent
+                      return (innos, g:gs)
+                  | otherwise =  do
+                      roll <- getRandomR (0,1)
+                      if roll <= noCrossover p
+                        then do
+                        (_,parent) <- gen
+                        (innos', g) <- mutateAdd p innos parent
+                        return (innos', g:gs)
+                        else do
+                        (fit1, mom) <- gen
+                        (fit2, dad) <- gen
+                        (innos', g) <- if fit1 > fit2
+                                       then breed p innos mom dad
+                                       else breed p innos dad mom
+                        return (innos', g:gs)
+                
         allGens :: (MonadRandom m, MonadFresh InnoId m) => m [Genome]
         allGens = liftM (concat . snd) $ foldM ag' (M.empty, []) candSpecs
           where ag' (innos, cands) cand = do

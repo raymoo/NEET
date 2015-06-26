@@ -23,7 +23,7 @@ description:
 
 library
   exposed-modules:     Neet.Genome, Control.Monad.Fresh.Class, Neet.Parameters, Neet.Network,
-                       Neet.Species, Neet.Population, Neet.Examples.XOR, Neet
+                       Neet.Species, Neet.Population, Neet.Examples.XOR, Neet, Neet.Training
   -- other-modules:       
   other-extensions:    FunctionalDependencies, MultiParamTypeClasses
   build-depends:       base >=4.7 && <4.8, MonadRandom >=0.4 && <0.5,

@@ -421,6 +421,7 @@ trainOnce scorer pop = (generated, msolution)
                      , popParams = newParams
                      , nextSpec = nextSpec'
                      , popGen = popGen pop + 1
+                     , popPhase = newPhase
                      } 
 
 

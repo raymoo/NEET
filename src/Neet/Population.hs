@@ -394,7 +394,7 @@ trainOnce scorer pop = (generated, msolution)
               newParams :: Parameters
               newParams =
                 case specParams params of
-                 Simple _ -> newParams
+                 Simple _ -> params
                  Target dp st@SpeciesTarget{..}
                    | specCount > snd targetCount ->
                        let newDP = dp { delta_t = delta_t dp + adjustAmount }

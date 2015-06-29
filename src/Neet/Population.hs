@@ -33,6 +33,7 @@ Portability : ghc
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE RankNTypes #-}
 module Neet.Population (
                          Population(..)
                        , SpecId(..)
@@ -45,8 +46,14 @@ module Neet.Population (
                        , newPop
                          -- * Training
                        , trainOnce
+                       , TrainMethod(..)
+                         -- ** TrainMethods
+                       , pureTrain
+                       , winTrain
+                         -- ** Convenience
                        , trainN
                        , trainUntil
+                       , trainPure
                          -- * Statistics
                        , speciesCount
                          -- * Debugging
@@ -58,14 +65,18 @@ import Neet.Genome
 import Neet.Parameters
 
 import Data.MultiMap (MultiMap)
+
 import qualified Data.MultiMap as MM
 
 import Data.Map (Map)
 import qualified Data.Map as M
 
-import Data.List (foldl', maximumBy, sortBy, mapAccumL)
+import Data.List (foldl', maximumBy, sortBy)
 
 import Data.Maybe
+import Data.Monoid
+
+import Data.Functor.Identity
 
 import Control.Monad.Random
 import Control.Monad.Fresh.Class
@@ -73,6 +84,8 @@ import Control.Monad.Trans.State
 
 import Control.Applicative
 import Control.Monad
+
+import Data.Traversable
 
 import Control.Parallel.Strategies
 
@@ -97,6 +110,29 @@ data Population =
              , popGen    :: Int                -- ^ Current generation
              }
   deriving (Show)
+
+
+-- | Describes how to handle each species or genome when processing fitness,
+-- allowing the addition of additional effects
+newtype TrainMethod f =
+  TrainMethod { tmGen :: forall t. Traversable t => t Genome -> f (t Double)
+                -- ^ How to process each 'Genome' of a species into a score.
+              }
+
+
+-- | Train method without any additional effects
+pureTrain :: GenScorer a -> TrainMethod Identity
+pureTrain gs = TrainMethod go
+  where go gmap = Identity $ fmap (fitnessFunction gs . gScorer gs) gmap
+
+
+-- | Train method that possibly returns a solution
+winTrain :: GenScorer a -> TrainMethod ((,) (First Genome))
+winTrain gs = TrainMethod (traverse go)
+  where go genome
+          | winCriteria gs score = (First (Just genome), fitnessFunction gs score)
+          | otherwise = (First Nothing, fitnessFunction gs score)
+          where score = gScorer gs genome
 
 
 data PopContext =
@@ -235,10 +271,15 @@ newPop seed PS{..} = fst $ runPopM generate initCont
           return Population{..}
 
 
+trainOnce :: Applicative f => TrainMethod f -> Population -> f Population
+trainOnce method pop = fmap (flip trainOnceWFits pop) $ specRes
+  where specRes = traverse (runFitTestWStrategy (tmGen method)) (popSpecs pop)
+
+
 -- | Advances the population one generation with the fitness function, possibly
 -- giving a solution.
-trainOnce :: GenScorer a -> Population -> (Population, Maybe Genome)
-trainOnce scorer pop = (generated, msolution)
+trainOnceWFits :: Map SpecId TestResult -> Population -> Population
+trainOnceWFits tResults pop = generated
   where params = popParams pop
 
         mParams = mutParams params
@@ -271,12 +312,8 @@ trainOnce scorer pop = (generated, msolution)
         oneEval = evalTuple2 r0 rseq
 
         -- | Map to fitness data from runFitTest
-        fits = M.map (\sp -> (sp, runFitTest scorer sp)) initSpecs `using` parTraversable oneEval
+        fits = M.intersectionWith (,) initSpecs tResults `using` parTraversable oneEval
 
-        msolution = go $ map (trSol . snd) $ M.elems fits
-          where go [] = Nothing
-                go (Just x:_) = Just x
-                go (_:xs) = go xs
 
         -- | Whether a species deserves to live (did it improve recently?)
         eugenics :: SpecId -> (Species, TestResult) ->
@@ -426,12 +463,17 @@ trainOnce scorer pop = (generated, msolution)
 
 
 -- | Train the population n times. Values less than 1 return the original.
-trainN :: Int -> GenScorer a -> Population -> Population
-trainN n scorer p
-  | n <= 0 = p
-  | otherwise = applyN n (trainOnce scorer) p
-  where applyN 0  _ !x = x
-        applyN n' h !x = applyN (n' - 1) h (fst $ h x)
+trainN :: (Applicative f, Monad f) =>
+          TrainMethod f -> Int -> Population -> f Population
+trainN tm n p
+  | n <= 0 = return p
+  | otherwise = applyN n (trainOnce tm) (return p)
+  where applyN n' h !x = iterate (>>= h) x !! n'
+
+
+-- | Train without effects
+trainPure :: GenScorer a -> Population -> Population
+trainPure gs pop = runIdentity $ trainOnce (pureTrain gs) pop
 
 
 -- | Train until the provided goal is reached, or the max number
@@ -442,9 +484,9 @@ trainUntil n f p
   | n <= 0 = (p, Nothing)
   | otherwise = go n p
   where go 0  !p' = (p', Nothing)
-        go n' !p' = case trainOnce f p' of
-                     (p'', Nothing) -> go (n' - 1) p''
-                     (p'', Just g) -> (p'', Just (g, n - n'))
+        go n' !p' = case trainOnce (winTrain f) p' of
+                     (First Nothing, p'') -> go (n' - 1) p''
+                     (First (Just g), p'') -> (p'', Just (g, n - n'))
 
 
 -- | Gets the number of species

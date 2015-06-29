@@ -29,6 +29,7 @@ Portability : ghc
 
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE RankNTypes #-}
 module Neet.Species (
                       Species(..)
                     , SpecScore(..)
@@ -36,7 +37,7 @@ module Neet.Species (
                     , newSpec
                       -- * Update/Fitness
                     , TestResult(..)
-                    , runFitTest
+                    , runFitTestWStrategy
                     , updateSpec
                       -- * Statistics
                     , maxDist
@@ -53,6 +54,7 @@ import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.List (foldl')
 import Data.Maybe
+import Data.Traversable (Traversable)
 
 import Control.Applicative ((<$>), (<*>))
 
@@ -86,28 +88,26 @@ newSpec gen gens = Species (length gens + 1) (gen:gens) (SpecScore 0 gen) 0
 -- | A result of evaluating a species
 data TestResult =
   TR { trScores :: MultiMap Double Genome -- ^ The score of each organism
-     , trSS     :: !SpecScore              -- ^ Result 'SpecScore'
-     , trAdj    :: !Double                 -- ^ Total adjusted fitness
-     , trSol    :: !(Maybe Genome)           -- ^ Possible Solution
+     , trSS     :: !SpecScore             -- ^ Result 'SpecScore'
+     , trAdj    :: !Double                -- ^ Total adjusted fitness
      }
 
-findMay :: (a -> Bool) -> [a] -> Maybe a
-findMay _ [] = Nothing
-findMay p (a:as)
-  | p a = Just a
-  | otherwise = findMay p as
+
+-- | Output the result of testing fitness. The first argument tells how to process
+-- each genome, with extra effects possible. If you don't need that, you can just
+-- 'fmap' over your fitness function and put Identity over the result.
+runFitTestWStrategy :: Functor f =>
+                       (forall t. Traversable t =>  t Genome -> f (t Double)) -> Species -> f TestResult
+runFitTestWStrategy strat spec = fmap (flip runFitTestWithScores spec) $ strat (specOrgs spec)
 
 
--- | Output the result of testing fitness. Last value is the total adjusted fitness
-runFitTest :: GenScorer a -> Species -> TestResult
-runFitTest GS{..} Species{..} = TR mmap ss (totF / dubSize) msolution
+-- | "Helper function" for runFitTestWStrategy
+runFitTestWithScores :: [Double] -> Species -> TestResult
+runFitTestWithScores fitList Species{..} = TR mmap ss (totF / dubSize)
   where dubSize = fromIntegral specSize :: Double
         (mmap, totF) = foldl' accumOne (MM.empty, 0) resses
-        calcOne g = let !score = gScorer g in (score, g)
-        resses = map calcOne specOrgs
-        msolution = fmap snd . findMay (\pair -> winCriteria (fst pair)) $ resses
-        accumOne (accM, accA) (score, g) = (MM.insert fit g accM, accA + fit)
-          where fit = fitnessFunction score
+        resses = zip fitList specOrgs
+        accumOne (accM, accA) (score, g) = (MM.insert score g accM, accA + score)
         ss = case MM.findMaxWithValues mmap of
               Nothing -> error "(runFitTest) folding fitness resulted in empty map!"
               Just (scr, (x:_)) -> SpecScore scr x

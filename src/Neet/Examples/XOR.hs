@@ -33,6 +33,8 @@ module Neet.Examples.XOR (xorFit, andFit, orFit, xorExperiment) where
 import Neet
 import Neet.Species
 
+import Data.Monoid
+
 import qualified Data.Map.Strict as M
 
 import System.Random
@@ -118,7 +120,7 @@ mkSpecInfo pop = intercalate ", " infos
 xorLoop :: Population -> IO (Population, Genome)
 xorLoop pop = do
   printInfo pop
-  let (pop', mg) = trainOnce xorFit pop
+  let (First mg, pop') = trainOnce (winTrain xorFit) pop
   case mg of
    Nothing -> xorLoop pop'
    Just g -> return (pop',g)

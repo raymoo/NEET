@@ -50,6 +50,7 @@ module Neet.Population (
                          -- ** TrainMethods
                        , pureTrain
                        , winTrain
+                       , trainTrain
                          -- ** Convenience
                        , trainN
                        , trainUntil
@@ -63,6 +64,7 @@ module Neet.Population (
 import Neet.Species
 import Neet.Genome
 import Neet.Parameters
+import Neet.Training
 
 import Data.MultiMap (MultiMap)
 
@@ -133,6 +135,11 @@ winTrain gs = TrainMethod (traverse go)
           | winCriteria gs score = (First (Just genome), fitnessFunction gs score)
           | otherwise = (First Nothing, fitnessFunction gs score)
           where score = gScorer gs genome
+
+
+-- | Train method that gives a 'Training'.
+trainTrain :: TrainMethod (Training Genome Double)
+trainTrain = TrainMethod trainTraversable
 
 
 data PopContext =

@@ -9,11 +9,11 @@ Super Mario World. I plan on using this package to mess around with AI.
 - Using networks
 - Parallel fitness evaluation
 - Phased Search
+- Training in an arbitrary monad
 
 ## Planned Features
 - Serialization
 - Better rendering
-- Training in an arbitrary monad
 - (Maybe) Parallel evaluation of breeding functions
 
 ## Lofty Dreams

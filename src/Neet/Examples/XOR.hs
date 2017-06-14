@@ -106,9 +106,12 @@ xorExperiment = do
 
   putStrLn $ "Final distance threshold: " ++ show (distParams . specParams $ popParams pop')
   
-  putStrLn "\nPress Enter to view network"
-  _ <- getLine
-  renderGenome sol
+  putStrLn "\nSpecify a path to write the network dot file"
+  putStrLn "Otherwise press Enter to view network"
+  dotPath <- getLine
+  if dotPath == ""
+    then renderGenome sol
+    else writeGenomeDot dotPath sol
 
 
 mkSpecInfo :: Population -> String

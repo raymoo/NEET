@@ -60,6 +60,8 @@ module Neet.Genome ( -- * Genes
                    , GenScorer(..)
                      -- ** Visualization
                    , renderGenome
+                   , writeGenomeDot
+                   , genomeToDotGraph
                    , printGenome
                      -- ** Debugging
                    , validateGenome
@@ -90,6 +92,8 @@ import Neet.Parameters
 
 import Data.GraphViz
 import Data.GraphViz.Attributes.Complete
+
+import qualified Data.Text.Lazy.IO as Text
 
 import GHC.Generics (Generic)
 import Data.Serialize (Serialize)
@@ -549,10 +553,21 @@ graphParams =
 -- else that there really is a problem.
 renderGenome :: Genome -> IO ()
 renderGenome g = runGraphvizCanvas Dot graph Xlib
+  where graph = genomeToDotGraph g
+
+-- | Writes the dot file for the provided genome somewhere on the file system.
+writeGenomeDot :: FilePath -> Genome -> IO ()
+writeGenomeDot path g = Text.writeFile path dot
+  where dot = printDotGraph (genomeToDotGraph g)
+
+
+-- | Generate the DotGraph used by 'renderGenome'.
+genomeToDotGraph :: Genome -> DotGraph NodeId
+genomeToDotGraph g = graphElemsToDot graphParams nodes edges
   where nodes = map (first NodeId) . IM.toList . nodeGenes $ g
         edges = mapMaybe mkEdge . IM.elems . connGenes $ g
         mkEdge ConnGene{..} = if connEnabled then Just (connIn, connOut, connWeight) else Nothing
-        graph = graphElemsToDot graphParams nodes edges
+
 
 
 -- | A nicer way to display a 'Genome' than the Show instance.

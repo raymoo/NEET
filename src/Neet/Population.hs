@@ -84,8 +84,6 @@ import Control.Monad.Random
 import Control.Monad.Fresh.Class
 import Control.Monad.Trans.State
 
-import Control.Monad
-
 import Data.Traversable
 
 import Control.Parallel.Strategies

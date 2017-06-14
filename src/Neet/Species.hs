@@ -54,9 +54,6 @@ import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.List (foldl')
 import Data.Maybe
-import Data.Traversable (Traversable)
-
-import Control.Applicative ((<$>), (<*>))
 
 
 -- | A NEAT Species.

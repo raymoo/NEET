@@ -32,9 +32,9 @@ module Neet.Training ( Training(..)
                      , trainTraversable
                      ) where
 
-import Control.Applicative
+
 import qualified Data.Traversable as T
-import Data.Traversable (Traversable)
+
 
 
 -- | Training structure. The idea is that if it is 'StillTraining', it is

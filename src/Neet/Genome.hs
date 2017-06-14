@@ -65,7 +65,7 @@ module Neet.Genome ( -- * Genes
                    , validateGenome
                    ) where
 
-import Control.Applicative
+
 import Control.Monad
 import Control.Monad.Random
 import Control.Arrow (first)

@@ -84,7 +84,6 @@ import Control.Monad.Random
 import Control.Monad.Fresh.Class
 import Control.Monad.Trans.State
 
-import Control.Applicative
 import Control.Monad
 
 import Data.Traversable
